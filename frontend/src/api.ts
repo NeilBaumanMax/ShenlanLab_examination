@@ -110,3 +110,10 @@ export function removeAttachment(
     }),
   });
 }
+
+export function openSubmissionDirectory(profile: StudentProfile): Promise<{ ok: boolean; directoryName: string }> {
+  return request("/api/submission/open", {
+    method: "POST",
+    body: JSON.stringify({ name: profile.name, studentId: profile.studentId }),
+  });
+}

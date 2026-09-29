@@ -1,6 +1,6 @@
 import "./style.css";
 import questionData from "../../content/questions.json";
-import { createProfile, removeAttachment, saveAnswer, uploadAttachment, type StudentProfile } from "./api";
+import { createProfile, openSubmissionDirectory, removeAttachment, saveAnswer, uploadAttachment, type StudentProfile } from "./api";
 import type { Phase, Question, QuestionData } from "./types";
 
 /*
@@ -107,6 +107,56 @@ function statusGuidance(questionId: string, status: SaveState): string {
 
 function phaseQuestionCount(phase: Phase): number {
   return phase.questionIds.filter(hasAnswer).length;
+}
+
+function checklistMarkup(): string {
+  const incomplete = data.questions.filter((question) => !hasAnswer(question.id));
+  const attachmentCount = [...attachmentDrafts.values()].reduce((count, names) => count + names.length, 0);
+  const projectFields = answerDrafts.get("Q09") ?? {};
+  const projectLink = (projectFields.repository ?? "").trim();
+  let githubLink = false;
+  try {
+    const parsedLink = new URL(projectLink);
+    githubLink = parsedLink.protocol === "https:" && parsedLink.hostname === "github.com";
+  } catch {
+    githubLink = false;
+  }
+  const projectZip = (attachmentDrafts.get("Q09") ?? []).some((name) => name.toLowerCase().endsWith(".zip"));
+  const projectStatus = githubLink || projectZip
+    ? `项目实战材料已提供${githubLink && projectZip ? "链接和 ZIP" : githubLink ? "GitHub 链接" : "源码 ZIP"}。`
+    : "项目实战题还需要 GitHub 链接或源码 ZIP。";
+  return `
+    <div class="checklist-summary">
+      <p><strong>${progressCount()} / 10</strong> 道题已有答案或附件 <span>· ${attachmentCount} 个附件</span></p>
+      <p>${escapeHtml(projectStatus)}</p>
+      ${incomplete.length ? `<details class="checklist-missing"><summary>查看 ${incomplete.length} 道还没有作答的题目</summary><ul>${incomplete.map((question) => `<li>${escapeHtml(question.id)} · ${escapeHtml(question.title)}</li>`).join("")}</ul></details>` : "<p>十道题都已有作答或附件。</p>"}
+    </div>`;
+}
+
+function bindChecklistDialog(): void {
+  root!.querySelectorAll<HTMLButtonElement>("[data-checklist]").forEach((button) => {
+    button.addEventListener("click", () => root!.querySelector<HTMLDialogElement>(".checklist-dialog")?.showModal());
+  });
+  root!.querySelectorAll<HTMLButtonElement>("[data-open-directory]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const dialog = button.closest<HTMLDialogElement>(".checklist-dialog");
+      const message = dialog?.querySelector<HTMLElement>("[data-open-directory-status]");
+      if (!activeProfile) {
+        if (message) message.textContent = "请先在右上角填写并保存姓名和学号。";
+        return;
+      }
+      button.disabled = true;
+      if (message) message.textContent = "正在打开本机提交目录…";
+      try {
+        const result = await openSubmissionDirectory(activeProfile);
+        if (message) message.textContent = `已打开 ${result.directoryName}。`;
+      } catch (error) {
+        if (message) message.textContent = error instanceof Error ? error.message : "无法打开目录，请检查本机服务。";
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
 }
 
 function renderNavigation(): string {
@@ -285,14 +335,14 @@ function renderHome(): void {
       <dialog class="checklist-dialog" aria-labelledby="checklist-title">
       <form method="dialog"><button class="dialog-close" aria-label="关闭">×</button></form>
       <p class="section-kicker">提交资料</p><h2 id="checklist-title">完成后这样提交</h2>
-      <ol><li>检查每题的答案与附件。</li><li>项目实战题提交 GitHub 链接或源码 ZIP。</li><li>点击“打开提交目录”，手动压缩自己的资料文件夹。</li><li>通过 QQ 邮箱发送给组织者。</li></ol>
+      ${checklistMarkup()}
+      <ol><li>检查每题的答案与附件。</li><li>项目实战题提交 GitHub 链接或源码 ZIP。</li><li>打开个人提交目录，手动压缩自己的资料文件夹。</li><li>通过 QQ 邮箱发送给组织者。</li></ol>
       <p class="dialog-note">App 不会自动打包或发送邮件。源码 ZIP 建议排除依赖目录、构建缓存、密钥和私人数据。</p>
-      <form method="dialog"><button class="button button--primary">知道了</button></form>
+      <p class="directory-status" data-open-directory-status role="status"></p>
+      <div class="checklist-actions"><button class="button button--secondary" type="button" data-open-directory>打开提交目录</button><form method="dialog"><button class="button button--primary">知道了</button></form></div>
     </dialog>`);
 
-  root!.querySelector<HTMLButtonElement>("[data-checklist]")?.addEventListener("click", () => {
-    root!.querySelector<HTMLDialogElement>(".checklist-dialog")?.showModal();
-  });
+  bindChecklistDialog();
 }
 
 function renderQuestion(question: Question): void {
@@ -400,9 +450,11 @@ function renderQuestion(question: Question): void {
     <dialog class="checklist-dialog" aria-labelledby="checklist-title">
       <form method="dialog"><button class="dialog-close" aria-label="关闭">×</button></form>
       <p class="section-kicker">提交资料</p><h2 id="checklist-title">完成后这样提交</h2>
-      <ol><li>检查每题的答案与附件。</li><li>项目实战题提交 GitHub 链接或源码 ZIP。</li><li>点击“打开提交目录”，手动压缩自己的资料文件夹。</li><li>通过 QQ 邮箱发送给组织者。</li></ol>
+      ${checklistMarkup()}
+      <ol><li>检查每题的答案与附件。</li><li>项目实战题提交 GitHub 链接或源码 ZIP。</li><li>打开个人提交目录，手动压缩自己的资料文件夹。</li><li>通过 QQ 邮箱发送给组织者。</li></ol>
       <p class="dialog-note">App 不会自动打包或发送邮件。源码 ZIP 建议排除依赖目录、构建缓存、密钥和私人数据。</p>
-      <form method="dialog"><button class="button button--primary">知道了</button></form>
+      <p class="directory-status" data-open-directory-status role="status"></p>
+      <div class="checklist-actions"><button class="button button--secondary" type="button" data-open-directory>打开提交目录</button><form method="dialog"><button class="button button--primary">知道了</button></form></div>
     </dialog>`);
 
   root!.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("[data-answer-field]").forEach((field) => {
@@ -420,9 +472,7 @@ function renderQuestion(question: Question): void {
       void deleteAttachment(question, button.dataset.removeFile ?? "");
     });
   });
-  root!.querySelectorAll<HTMLButtonElement>("[data-checklist]").forEach((button) => {
-    button.addEventListener("click", () => root!.querySelector<HTMLDialogElement>(".checklist-dialog")?.showModal());
-  });
+  bindChecklistDialog();
   root!.querySelector<HTMLButtonElement>("[data-previous]")?.addEventListener("click", () => moveQuestion(question.id, -1));
   root!.querySelector<HTMLButtonElement>("[data-next]")?.addEventListener("click", () => moveQuestion(question.id, 1));
 }

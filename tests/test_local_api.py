@@ -1,7 +1,10 @@
 import json
+import io
 import tempfile
 import threading
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from unittest.mock import MagicMock, patch
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError
@@ -170,6 +173,59 @@ class LocalApiTest(unittest.TestCase):
 
         with self.assertRaises(start.RequestProblem):
             start.validate_attachment_name("../outside.txt")
+
+    def test_open_submission_directory_opens_only_existing_profile_directory(self) -> None:
+        profile_payload = {"name": "林同学", "studentId": "OPEN-001"}
+        status, _ = self.post_json("/api/profile", profile_payload)
+        self.assertEqual(status, 200)
+        expected_dir = self.submissions_root / "OPEN-001_林同学"
+        with patch("start.open_directory") as open_mock:
+            status, response = self.post_json("/api/submission/open", profile_payload)
+        self.assertEqual(status, 200)
+        self.assertEqual(response["directoryName"], expected_dir.name)
+        open_mock.assert_called_once_with(expected_dir.resolve())
+
+        missing_status, missing = self.post_json(
+            "/api/submission/open", {"name": "尚未创建", "studentId": "OPEN-002"}
+        )
+        self.assertEqual(missing_status, 404)
+        self.assertIn("先保存学生信息", missing["error"])
+
+    def test_open_submission_directory_reports_system_error(self) -> None:
+        profile_payload = {"name": "林同学", "studentId": "OPEN-003"}
+        self.post_json("/api/profile", profile_payload)
+        with patch("start.open_directory", side_effect=OSError("file manager unavailable")):
+            status, response = self.post_json("/api/submission/open", profile_payload)
+        self.assertEqual(status, 500)
+        self.assertIn("系统文件管理器", response["error"])
+
+    def test_main_starts_loopback_server_and_opens_browser(self) -> None:
+        fake_server = MagicMock()
+        output = io.StringIO()
+        with (
+            patch("start.ThreadingHTTPServer", return_value=fake_server) as server_factory,
+            patch("start.webbrowser.open", return_value=True) as browser_open,
+            redirect_stdout(output),
+        ):
+            result = start.main()
+        self.assertEqual(result, 0)
+        self.assertEqual(server_factory.call_args.args[0], ("127.0.0.1", 8765))
+        browser_open.assert_called_once_with("http://127.0.0.1:8765")
+        fake_server.serve_forever.assert_called_once()
+        fake_server.server_close.assert_called_once()
+
+    def test_main_reports_port_conflict_without_silently_changing_port(self) -> None:
+        error_output = io.StringIO()
+        with (
+            patch("start.ThreadingHTTPServer", side_effect=OSError("address in use")),
+            patch("start.webbrowser.open") as browser_open,
+            redirect_stderr(error_output),
+        ):
+            result = start.main()
+        self.assertEqual(result, 1)
+        self.assertIn("127.0.0.1:8765", error_output.getvalue())
+        self.assertIn("关闭占用 8765 端口", error_output.getvalue())
+        browser_open.assert_not_called()
 
 
 if __name__ == "__main__":

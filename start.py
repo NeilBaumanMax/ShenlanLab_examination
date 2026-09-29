@@ -6,9 +6,11 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 import unicodedata
+import webbrowser
 from email import policy
 from email.parser import BytesParser
 from datetime import datetime, timezone
@@ -415,6 +417,8 @@ class LocalRequestHandler(SimpleHTTPRequestHandler):
             payload = self.read_json()
             if parsed.path == "/api/profile":
                 self.handle_profile(payload)
+            elif parsed.path == "/api/submission/open":
+                self.handle_open_submission_directory(payload)
             elif parsed.path.startswith("/api/answers/"):
                 self.handle_answer(parsed.path, payload)
             else:
@@ -513,6 +517,18 @@ class LocalRequestHandler(SimpleHTTPRequestHandler):
             atomic_write_text(student_dir / "学生信息.md", profile_markdown(name, student_id))
         self.send_json(200, {"ok": True, "questionId": question_id, "filename": filename})
 
+    def handle_open_submission_directory(self, payload: dict[str, Any]) -> None:
+        _, student_dir, directory_name, _ = resolve_student_directory(
+            payload.get("name"), payload.get("studentId"), self.submissions_root
+        )
+        if not student_dir.is_dir():
+            raise RequestProblem(404, "还没有本机答题目录，请先保存学生信息。")
+        try:
+            open_directory(student_dir)
+        except OSError as error:
+            raise RequestProblem(500, "无法打开本机提交目录，请检查系统文件管理器。") from error
+        self.send_json(200, {"ok": True, "directoryName": directory_name})
+
     def send_error(self, code: int, message: str | None = None, explain: str | None = None) -> None:
         if urlsplit(self.path).path.startswith("/api/"):
             self.send_json(code, {"error": message or "本机服务无法完成请求。"})
@@ -526,6 +542,15 @@ def make_handler(static_root: Path, submissions_root: Path):
         directory=str(static_root),
         submissions_root=submissions_root,
     )
+
+
+def open_directory(path: Path) -> None:
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    elif os.name == "nt":
+        os.startfile(str(path))  # type: ignore[attr-defined]
+    else:
+        subprocess.Popen(["xdg-open", str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def main() -> int:
@@ -548,6 +573,11 @@ def main() -> int:
 
     print(f"本地答题 App 已启动：http://{HOST}:{PORT}")
     print("按 Ctrl+C 停止服务。答题数据只保存在本机。")
+    try:
+        if not webbrowser.open(f"http://{HOST}:{PORT}"):
+            print("未能自动打开浏览器，请手动访问上方地址。")
+    except Exception as error:
+        print(f"未能自动打开浏览器（{error}），请手动访问上方地址。")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

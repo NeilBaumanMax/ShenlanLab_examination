@@ -277,6 +277,15 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .checklist-dialog::backdrop { background: rgb(12 35 62 / 42%); }
 .checklist-dialog h2 { margin: 0 0 16px; color: var(--navy); font-size: 22px; }
 .checklist-dialog ol { display: grid; gap: 11px; margin: 0; padding-left: 21px; color: #4f667f; font-size: 12px; line-height: 1.65; }
+.checklist-summary { margin: 16px 0; padding: 13px; border: 1px solid #dce7f1; border-radius: 9px; color: #536d88; background: #f7f9fc; font-size: 11px; line-height: 1.65; }
+.checklist-summary p { margin: 0 0 7px; }
+.checklist-summary p:last-child { margin-bottom: 0; }
+.checklist-summary strong { color: var(--navy); font-size: 13px; }
+.checklist-missing summary { color: #53799f; cursor: pointer; }
+.checklist-missing ul { display: grid; gap: 4px; margin: 7px 0 0; padding-left: 18px; }
+.directory-status { min-height: 18px; margin: 0 0 10px; color: #537052; font-size: 11px; }
+.checklist-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 9px; }
+.checklist-actions form { margin: 0; }
 .dialog-note { margin: 17px 0; padding: 11px; border-radius: 8px; color: #536d88; background: #f0f5fa; font-size: 10px; line-height: 1.7; }
 .dialog-close { position: absolute; top: 14px; right: 15px; width: 28px; height: 28px; border: 0; border-radius: 50%; color: #61758b; background: #f2f5f8; font-size: 19px; cursor: pointer; }
 
@@ -349,6 +358,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
   .document-section--compact { padding: 13px 0; }
   .question-aside { grid-template-columns: 1fr; }
   .checklist-link { grid-column: auto; }
+  .checklist-dialog { padding: 23px 18px; }
   .question-pager .button { padding: 0 10px; }
 }
 
