@@ -131,7 +131,7 @@ class LocalApiTest(unittest.TestCase):
             ("/api/attachments/Q01", "concept-notes.pdf", b"%PDF-1.7 fictional test bytes"),
             ("/api/attachments/Q03", "setup-proof.docx", b"PK fictional DOCX test bytes"),
             (
-                "/api/attachments/Q09",
+                "/api/attachments/Q10",
                 "模拟课表.xlsx",
                 (start.ROOT / "samples" / "模拟课表.xlsx").read_bytes(),
             ),
@@ -155,22 +155,22 @@ class LocalApiTest(unittest.TestCase):
         self.assertEqual(duplicate["attachment"]["name"], "概念图.png")
 
         status, project_zip = self.post_file(
-            "/api/attachments/Q09", profile_payload, "source.zip", b"source archive bytes"
+            "/api/attachments/Q10", profile_payload, "source.zip", b"source archive bytes"
         )
         self.assertEqual(status, 200)
         self.assertEqual(project_zip["attachment"]["name"], "source.zip")
         self.assertEqual(
-            (student_dir / QUESTION_DIRECTORIES["Q09"] / "source.zip").read_bytes(),
+            (student_dir / QUESTION_DIRECTORIES["Q10"] / "source.zip").read_bytes(),
             b"source archive bytes",
         )
         project_answer = {
             **profile_payload,
             "fields": {"repository": "https://github.com/example/student-project"},
         }
-        status, project_saved = self.post_json("/api/answers/Q09", project_answer)
+        status, project_saved = self.post_json("/api/answers/Q10", project_answer)
         self.assertEqual(status, 200)
-        self.assertEqual(project_saved["questionId"], "Q09")
-        project_dir = student_dir / QUESTION_DIRECTORIES["Q09"]
+        self.assertEqual(project_saved["questionId"], "Q10")
+        project_dir = student_dir / QUESTION_DIRECTORIES["Q10"]
         self.assertEqual(
             (project_dir / "GitHub仓库链接.txt").read_text(encoding="utf-8"),
             "https://github.com/example/student-project",

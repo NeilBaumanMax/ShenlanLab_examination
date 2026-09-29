@@ -1,5 +1,7 @@
 import "./style.css";
 import questionData from "../../content/questions.json";
+import examMarkdown from "../../content/latest-exam.md?raw";
+import { extractExamSummary, extractIntroduction, extractQuestionMarkdown, extractStudentOverview, renderMarkdown, splitReadingGuide } from "./markdown";
 import {
   createProfile,
   deleteSubmissionFile,
@@ -28,6 +30,10 @@ const root = document.querySelector<HTMLDivElement>("#app");
 if (!root) throw new Error("找不到页面挂载节点 #app");
 
 const data = questionData as QuestionData;
+const questionMarkdown = extractQuestionMarkdown(examMarkdown);
+if (data.questions.length !== 11 || data.phases.length !== 3 || questionMarkdown.size !== 11) {
+  throw new Error("考核题库结构异常：需要三个阶段和完整的 11 道题目。");
+}
 const questionsById = new Map(data.questions.map((question) => [question.id, question]));
 const phasesById = new Map(data.phases.map((phase) => [phase.id, phase]));
 const answerDrafts = new Map<string, StoredAnswer>();
@@ -226,17 +232,22 @@ function loadLocalProfiles(): void {
 }
 
 function renderExamCard(): string {
-  const buttons = data.questions.map((question, index) => {
-    const state = questionState(question.id);
-    const label = `${index + 1} ${question.shortTitle}，${statusLabel(state)}`;
-    return `<button type="button" class="exam-number ${statusClass(state)}${activeQuestionId === question.id ? " is-current" : ""}"
-      data-question="${escapeHtml(question.id)}" aria-label="${escapeHtml(label)}"${activeQuestionId === question.id ? ' aria-current="step"' : ""}>
-      <span>${String(index + 1).padStart(2, "0")}</span>${state === "saved" ? '<i aria-hidden="true">✓</i>' : ""}
-    </button>`;
+  const groups = data.phases.map((phase, phaseIndex) => {
+    const questions = phase.questionIds.map((id) => questionsById.get(id)).filter((question): question is Question => !!question);
+    const buttons = questions.map((question) => {
+      const state = questionState(question.id);
+      const index = data.questions.findIndex((item) => item.id === question.id) + 1;
+      const label = `${index} ${question.shortTitle}，${statusLabel(state)}`;
+      return `<button type="button" class="exam-number ${statusClass(state)}${activeQuestionId === question.id ? " is-current" : ""}"
+        data-question="${escapeHtml(question.id)}" aria-label="${escapeHtml(label)}"${activeQuestionId === question.id ? ' aria-current="step"' : ""}>
+        <span>${String(index).padStart(2, "0")}</span>${state === "saved" ? '<i aria-hidden="true">✓</i>' : ""}
+      </button>`;
+    }).join("");
+    return `<section class="exam-phase exam-phase--${phase.tone}"><h3><span>0${phaseIndex + 1}</span>${escapeHtml(phase.title)}</h3><div class="exam-grid">${buttons}</div></section>`;
   }).join("");
   return `<section class="side-panel exam-panel" aria-labelledby="exam-title">
-    <div class="side-panel__heading"><h2 id="exam-title">答题卡</h2><span>${progressCount()} / 10 已提交</span></div>
-    <div class="exam-grid">${buttons}</div>
+    <div class="side-panel__heading"><h2 id="exam-title">答题卡</h2><span>${progressCount()} / ${data.questions.length} 已提交</span></div>
+    <div class="exam-phases">${groups}</div>
     <div class="exam-legend"><span><i class="legend-empty"></i>未提交</span><span><i class="legend-dirty"></i>有修改</span><span><i class="legend-saved">✓</i>已提交</span></div>
   </section>`;
 }
@@ -251,16 +262,22 @@ function renderFileItem(questionId: string, file: SubmissionFile): string {
 function renderFileTree(): string {
   if (!fileTree) return `<p class="tree-empty">填写身份后显示你的提交文件。</p>`;
   const rootFiles = fileTree.rootFiles.map((file) => `<li class="file-row"><span class="file-glyph" aria-hidden="true">TXT</span><span class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span></li>`).join("");
-  const directories = fileTree.questions.map((directory) => {
-    const question = questionsById.get(directory.id);
-    const files = directory.files.length
-      ? directory.files.map((file) => renderFileItem(directory.id, file)).join("")
-      : `<li class="tree-empty tree-empty--small">暂无文件</li>`;
-    return `<details class="tree-directory"${activeQuestionId === directory.id ? " open" : ""}>
-      <summary><span class="folder-icon" aria-hidden="true">▸</span><span>${escapeHtml(directory.id)} ${escapeHtml(question?.shortTitle ?? directory.directoryName)}</span><small>${directory.files.length}</small></summary>
-      <button class="tree-open-question" type="button" data-question="${escapeHtml(directory.id)}">打开本题</button>
-      <ul>${files}</ul>
-    </details>`;
+  const directoriesById = new Map(fileTree.questions.map((directory) => [directory.id, directory]));
+  const directories = data.phases.map((phase, phaseIndex) => {
+    const children = phase.questionIds.map((id) => {
+      const directory = directoriesById.get(id);
+      if (!directory) return "";
+      const question = questionsById.get(id);
+      const files = directory.files.length
+        ? directory.files.map((file) => renderFileItem(id, file)).join("")
+        : `<li class="tree-empty tree-empty--small">暂无文件</li>`;
+      return `<details class="tree-directory"${activeQuestionId === id ? " open" : ""}>
+        <summary><span class="folder-icon" aria-hidden="true">▸</span><span>${escapeHtml(id)} ${escapeHtml(question?.shortTitle ?? directory.directoryName)}</span><small>${directory.files.length}</small></summary>
+        <button class="tree-open-question" type="button" data-question="${escapeHtml(id)}">打开本题</button>
+        <ul>${files}</ul>
+      </details>`;
+    }).join("");
+    return `<section class="tree-phase tree-phase--${phase.tone}"><h3><span>0${phaseIndex + 1}</span>${escapeHtml(phase.title)}</h3>${children}</section>`;
   }).join("");
   return `<div class="file-tree" aria-label="提交文件目录">
     <div class="tree-root"><span class="folder-icon" aria-hidden="true">▾</span><strong>${escapeHtml(fileTree.directoryName)}</strong></div>
@@ -306,21 +323,31 @@ function renderShell(content: string): void {
 }
 
 function renderHome(): void {
-  const phases = data.phases.map((phase: Phase, index) => `
-    <button class="phase-row" type="button" data-question="${escapeHtml(phase.questionIds[0] ?? "Q01")}">
-      <span class="phase-row__number">0${index + 1}</span>
-      <span class="phase-row__copy"><strong>${escapeHtml(phase.title)}</strong><small>${escapeHtml(phase.summary)}</small></span>
-      <span class="phase-row__count">${phase.questionIds.length} 题</span><span aria-hidden="true">→</span>
-    </button>`).join("");
+  const phases = data.phases.map((phase: Phase, index) => {
+    const questionLinks = phase.questionIds.map((id) => {
+      const question = questionsById.get(id)!;
+      return `<button class="phase-question" type="button" data-question="${escapeHtml(id)}"><span>${id.slice(1)}</span>${escapeHtml(question.shortTitle)}<b aria-hidden="true">→</b></button>`;
+    }).join("");
+    return `<section class="phase-card phase-card--${phase.tone}">
+      <div class="phase-card__heading"><span class="phase-card__number">0${index + 1}</span><div><h3>${escapeHtml(phase.title)}</h3><p>${escapeHtml(phase.summary)}</p></div><span class="phase-card__count">${phase.questionIds.length} 题</span></div>
+      <div class="phase-card__questions">${questionLinks}</div>
+    </section>`;
+  }).join("");
   const next = data.questions.find((question) => !isSubmitted(question.id)) ?? data.questions[0];
+  const additional = extractStudentOverview(examMarkdown);
+  const additionalTitles = ["作答与提交说明", "我们如何看待你的表现", "学习资料与工具入口", "最终提交清单"];
+  const summaryDetails = `<details class="overview-details"><summary>考核方式、对象与目的</summary><div class="overview-details__content">${renderMarkdown(extractExamSummary(examMarkdown))}</div></details>`;
+  const details = additional.map((section, index) => `<details class="overview-details"><summary>${additionalTitles[index] ?? "补充说明"}</summary><div class="overview-details__content">${renderMarkdown(section)}</div></details>`).join("");
   renderShell(`<section class="home-heading">
     <p class="eyebrow">AI Agent 闯关答题</p>
-    <h1>选择一道题，开始作答</h1>
-    <p>提交后文件保存在本机，可随时修改并重新提交。</p>
+    <h1>从认识 AI 到完成自己的作品</h1>
+    <p>自主学习，动手实践。无需预先会编程；使用 AI 没有问题，关键是理解并核对自己的提交。</p>
     <button class="button button--primary" type="button" data-question="${escapeHtml(next.id)}">${progressCount() ? "继续答题" : "从第 1 题开始"} <span aria-hidden="true">→</span></button>
   </section>
-  <section class="route-overview" aria-labelledby="route-heading"><h2 id="route-heading">学习路线</h2><div class="phase-list">${phases}</div></section>
-  <p class="privacy-note">答案只保存在这台电脑。完成后请自行压缩个人目录并提交。</p>`);
+  <section class="overview-intro">${renderMarkdown(extractIntroduction(examMarkdown))}</section>
+  <section class="route-overview" aria-labelledby="route-heading"><div class="route-overview__heading"><div><p class="eyebrow">3 个阶段 · 11 道题</p><h2 id="route-heading">学习路线</h2></div><span>可随时跳转与回看</span></div><div class="phase-list">${phases}</div></section>
+  <section class="overview-extra"><h2>考核说明</h2>${summaryDetails}${details}</section>
+  <p class="privacy-note">答案保存在本机。完成后请打开个人提交目录，手动压缩并按组织者提供的信息发送。</p>`);
 }
 
 function renderQuestion(question: Question): void {
@@ -328,10 +355,6 @@ function renderQuestion(question: Question): void {
   const phase = phasesById.get(question.phaseId);
   const questionPosition = data.questions.findIndex((item) => item.id === question.id) + 1;
   const answer = getAnswer(question.id);
-  const resources = question.resources.map((resource) => {
-    const external = /^https?:\/\//.test(resource.url);
-    return `<a class="resource-link" href="${escapeHtml(resource.url)}"${external ? ' target="_blank" rel="noreferrer"' : ""}>${escapeHtml(resource.label)} <span aria-hidden="true">↗</span></a>`;
-  }).join("");
   const fields = (question.fields ?? []).map((field) => `
     <label class="answer-field" for="${escapeHtml(question.id)}-${escapeHtml(field.id)}"><span>${escapeHtml(field.label)}</span>
       <input id="${escapeHtml(question.id)}-${escapeHtml(field.id)}" type="${field.type === "url" ? "url" : "text"}" value="${escapeHtml(answer[field.id] ?? "")}"
@@ -342,16 +365,17 @@ function renderQuestion(question: Question): void {
   const stagedList = staged.length ? `<ul class="staged-files">${staged.map((file, index) => `<li><span>${escapeHtml(file.name)}</span><button type="button" data-remove-staged="${index}" data-question-id="${escapeHtml(question.id)}">移除</button></li>`).join("")}</ul>` : "";
   const message = attachmentMessages.get(question.id) ?? "";
   const dirtyWarning = state === "dirty" ? "修改尚未提交" : state === "saved" ? "本题已提交；可修改后再次提交" : "填写答案后点击提交本题";
+  const { reading, task } = splitReadingGuide(questionMarkdown.get(question.id) ?? "题目内容暂缺，请检查题库文件。");
   renderShell(`<article class="question-view">
     <div class="question-heading">
       <div class="breadcrumbs"><button type="button" data-home>全部题目</button><span>/</span><span>${escapeHtml(phase?.title ?? "任务")}</span></div>
-      <div class="question-heading__row"><div><p class="eyebrow">第 ${questionPosition} 题 · ${escapeHtml(phase?.title ?? "")}</p><h1>${escapeHtml(question.title)}</h1></div><span class="question-index">${String(questionPosition).padStart(2, "0")}<i> / 10</i></span></div>
+      <div class="question-heading__row"><div><p class="eyebrow">阶段 0${data.phases.indexOf(phase!)+1} · 第 ${questionPosition} 题</p><h1>${escapeHtml(question.title)}</h1><p class="question-theme">${escapeHtml(question.theme)}</p><a class="question-jump" href="#answer-form">跳到作答区 ↓</a></div><span class="question-index">${String(questionPosition).padStart(2, "0")}<i> / ${data.questions.length}</i></span></div>
     </div>
-    <section class="task-block"><h2>题目</h2><p>${escapeHtml(question.task)}</p>
-      <details class="task-expectation"><summary>提交要求</summary><p>${escapeHtml(question.expectation)}</p><p>${escapeHtml(question.assessment)}</p><p>${escapeHtml(question.outcome)}</p></details>
+    <section class="question-content" aria-label="完整题目内容">
+      ${reading ? `<details class="reading-guide"><summary>展开阅读导读</summary><div>${renderMarkdown(reading)}</div></details>` : ""}
+      ${renderMarkdown(task)}
     </section>
-    ${resources ? `<nav class="resource-list" aria-label="本题资料">${resources}</nav>` : ""}
-    <form class="answer-form" data-answer-form data-question-id="${escapeHtml(question.id)}" autocomplete="off">
+    <form id="answer-form" class="answer-form" data-answer-form data-question-id="${escapeHtml(question.id)}" autocomplete="off">
       <div class="answer-form__heading"><h2>我的答案</h2><span class="save-state ${statusClass(state)}" data-current-state role="status">${statusLabel(state)}</span></div>
       ${fields}
       <label class="answer-field" for="answer-${escapeHtml(question.id)}"><span>${escapeHtml(question.answerLabel)}</span>
@@ -368,7 +392,7 @@ function renderQuestion(question: Question): void {
     </form>
     <nav class="question-pager" aria-label="题目导航">
       <button class="button button--secondary" type="button" data-step="-1"${questionPosition === 1 ? " disabled" : ""}>← 上一题</button>
-      <button class="button button--secondary" type="button" data-step="1">${questionPosition === 10 ? "回到题目列表" : "下一题 →"}</button>
+      <button class="button button--secondary" type="button" data-step="1">${questionPosition === data.questions.length ? "回到题目列表" : "下一题 →"}</button>
     </nav>
   </article>`);
 }
@@ -395,7 +419,7 @@ function updateLiveStatus(questionId: string): void {
     button.innerHTML = `<span>${String(number).padStart(2, "0")}</span>${next === "saved" ? '<i aria-hidden="true">✓</i>' : ""}`;
   });
   const count = root!.querySelector<HTMLElement>(".side-panel__heading span");
-  if (count) count.textContent = `${progressCount()} / 10 已提交`;
+  if (count) count.textContent = `${progressCount()} / ${data.questions.length} 已提交`;
 }
 
 function updateDraftStatus(questionId: string): void {

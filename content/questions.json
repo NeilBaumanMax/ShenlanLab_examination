@@ -1,251 +1,39 @@
 {
   "phases": [
     {
-      "id": "foundations",
-      "title": "AI 基础概念",
-      "summary": "把 Agent 相关术语连成一张能解释实际任务的概念图。",
-      "questionIds": ["Q01", "Q02"]
+      "id": "understand-ai",
+      "title": "先认识 AI",
+      "summary": "理解 AI 核心概念，并比较聊天、工作流与 Agent。",
+      "questionIds": ["Q01", "Q02"],
+      "tone": "sky"
     },
     {
-      "id": "agent-tools",
-      "title": "安装并使用 AI Agent",
-      "summary": "在自己的项目目录中启动 Agent，并学会查资料和扩展能力。",
-      "questionIds": ["Q03", "Q04", "Q05"]
+      "id": "agent-and-github",
+      "title": "安装 Agent 与 GitHub 项目管理",
+      "summary": "在项目目录使用 Agent，练习 Skill、GitHub、提交与分支。",
+      "questionIds": ["Q03", "Q04", "Q05", "Q06", "Q07", "Q08"],
+      "tone": "indigo"
     },
     {
-      "id": "version-control",
-      "title": "GitHub、提交历史和分支",
-      "summary": "用版本记录保存项目、表达修改，并保护敏感信息。",
-      "questionIds": ["Q06", "Q07", "Q08"]
-    },
-    {
-      "id": "build-and-reflect",
-      "title": "Vibecoding 实战",
-      "summary": "从真实问题出发，完成一个小工具并对结果负责。",
-      "questionIds": ["Q09", "Q10"]
+      "id": "vibecoding",
+      "title": "Vibecoding 实战与复盘",
+      "summary": "连接工作区，解决真实问题，完成作品并复盘学习过程。",
+      "questionIds": ["Q09", "Q10", "Q11"],
+      "tone": "teal"
     }
   ],
   "questions": [
-    {
-      "id": "Q01",
-      "phaseId": "foundations",
-      "title": "AI 核心概念串讲",
-      "shortTitle": "AI 核心概念",
-      "theme": "先建立 Agent 工作方式的概念地图。",
-      "task": "观看指定概念视频，围绕 LLM、Token、Context、Prompt、Tool、MCP、Agent、Agent Skill，选择一个熟悉的学习或生活场景，用自己的话讲清这些概念如何配合。",
-      "expectation": "用具体例子解释概念之间的关系，不要只抄术语定义；可以用文字，也可以上传手绘图或概念图。",
-      "assessment": "理解概念、组织表达，以及把抽象概念联系到实际任务的能力。",
-      "outcome": "建立 Agent 工作方式的基本概念图。",
-      "answerType": "textarea",
-      "answerLabel": "我的概念串讲",
-      "placeholder": "选一个你熟悉的场景，按任务发生的顺序讲讲这些概念如何配合……",
-      "resources": [
-        { "label": "随包讲义：AI 核心概念速读", "url": "materials/AI核心概念速读.md" },
-        { "label": "从 LLM 到 Agent Skill（Bilibili）", "url": "https://www.bilibili.com/video/BV1E7wtzaEdq/" },
-        { "label": "MCP 官方入门", "url": "https://modelcontextprotocol.io/docs/getting-started/intro" }
-      ],
-      "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".txt", ".md"]
-    },
-    {
-      "id": "Q02",
-      "phaseId": "foundations",
-      "title": "从聊天机器人到 Agent",
-      "shortTitle": "聊天机器人与 Agent",
-      "theme": "判断不同 AI 工作方式适合解决什么问题。",
-      "task": "比较 AI 聊天机器人、固定 AI 工作流和 AI Agent；说明提示词工程、上下文工程、Harness 工程分别主要解决什么问题。",
-      "expectation": "讲清不同方法的使用场景，并理解它们可以同时存在，不是简单的新旧替代关系。",
-      "assessment": "概括、比较和判断适用场景的能力。",
-      "outcome": "能按任务选择 AI 使用方式，而不是所有问题都只靠同一种聊天提示。",
-      "answerType": "textarea",
-      "answerLabel": "比较与场景判断",
-      "placeholder": "可以选择一个任务，分别判断三种方式是否合适，并说明原因……",
-      "resources": [
-        { "label": "随包讲义：AI 核心概念速读", "url": "materials/AI核心概念速读.md" },
-        { "label": "Claude Code 文档：概览与工作方式", "url": "https://code.claude.com/docs/en/overview" }
-      ],
-      "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".txt", ".md"]
-    },
-    {
-      "id": "Q03",
-      "phaseId": "agent-tools",
-      "title": "配置 AI Agent",
-      "shortTitle": "Agent 安装配置",
-      "theme": "让 Agent 在自己的项目目录里开始工作。",
-      "task": "根据资料安装 Claude Code CLI，使用 CC Switch 配置模型提供方（推荐 DeepSeek）；也可使用 DeepSeek Harness 或其他 AI Agent。进入自己的项目目录，让 Agent 阅读项目说明并回答项目当前状态。",
-      "expectation": "能按说明完成安装，知道 Agent 当前工作目录；遇到问题会根据报错查资料。截图中的密钥必须打码。",
-      "assessment": "工具配置、文档查找、基础排错和工作目录意识。",
-      "outcome": "能够在本机项目中启动一个 AI Agent。",
-      "answerType": "mixed",
-      "answerLabel": "安装与运行结果",
-      "fields": [
-        { "id": "method", "label": "我使用的 Agent 与安装方式", "type": "text", "placeholder": "例如：Claude Code CLI，通过 npm 安装" },
-        { "id": "model", "label": "配置的模型提供方", "type": "text", "placeholder": "例如：DeepSeek；不要填写 API Key" }
-      ],
-      "placeholder": "记录一次成功启动的结果，或遇到的问题和你采取的排查步骤……",
-      "resources": [
-        { "label": "随包指南：Agent 安装配置", "url": "materials/Agent安装配置指南.md" },
-        { "label": "常见问题", "url": "materials/常见问题.md" },
-        { "label": "Claude Code 安装文档", "url": "https://code.claude.com/docs/en/getting-started" },
-        { "label": "CC Switch 官网", "url": "https://ccswitch.io/" },
-        { "label": "DeepSeek Anthropic API 兼容说明", "url": "https://api-docs.deepseek.com/guides/anthropic_api/" },
-        { "label": "Python 官方下载", "url": "https://www.python.org/downloads/" },
-        { "label": "Node.js 官方下载", "url": "https://nodejs.org/" }
-      ],
-      "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".txt", ".md"]
-    },
-    {
-      "id": "Q04",
-      "phaseId": "agent-tools",
-      "title": "CLI 基础命令",
-      "shortTitle": "CLI 命令",
-      "theme": "遇到新命令时，先会找到并读懂帮助。",
-      "task": "查阅你正在使用的 Agent 当前版本命令说明，选择 3 个实际使用过的命令，说明用途，并演示其中一个。",
-      "expectation": "会查看帮助文档，能解释命令对当前任务有什么帮助，不依赖死记。",
-      "assessment": "自主查阅、理解和使用 CLI 的能力。",
-      "outcome": "能够自行探索 Agent 的基本操作。",
-      "answerType": "textarea",
-      "answerLabel": "命令与演示",
-      "placeholder": "列出命令、用途和一个实际演示；粘贴命令前确认没有密钥或私人信息。",
-      "resources": [
-        { "label": "随包指南：Agent 安装配置", "url": "materials/Agent安装配置指南.md" },
-        { "label": "常见问题", "url": "materials/常见问题.md" },
-        { "label": "Claude Code CLI 命令参考", "url": "https://code.claude.com/docs/en/cli-usage" }
-      ],
-      "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".txt", ".md"]
-    },
-    {
-      "id": "Q05",
-      "phaseId": "agent-tools",
-      "title": "Skill、Tool 与 MCP",
-      "shortTitle": "Skill 与 MCP",
-      "theme": "理解 Agent 如何按需使用可复用指引和外部能力。",
-      "task": "在项目中编写一个解决具体重复任务的简单 Skill；连接一个提供的只读示例 MCP；说明 Tool、Skill、MCP 的不同，并提出自己想制作的 Tool 或 MCP 服务。",
-      "expectation": "能说清 Skill 解决的重复任务、MCP 连接的数据或能力，以及应该限制的权限。",
-      "assessment": "Agent 扩展方式的理解、动手能力和安全意识。",
-      "outcome": "能添加或创建 Skill、使用现成 MCP，并提出扩展思路。",
-      "answerType": "mixed",
-      "answerLabel": "Skill 与 MCP 实践",
-      "fields": [
-        { "id": "skill", "label": "Skill 文件或链接", "type": "text", "placeholder": "本地路径或可访问的链接" }
-      ],
-      "placeholder": "说明 Skill 解决什么重复任务、MCP 能访问什么，以及你会怎样限制权限……",
-      "resources": [
-        { "label": "随包讲义：Skill 与 MCP 入门", "url": "materials/Skill与MCP入门.md" },
-        { "label": "Claude Code Skills 文档", "url": "https://code.claude.com/docs/en/skills" },
-        { "label": "Claude Code MCP 文档", "url": "https://code.claude.com/docs/en/mcp" },
-        { "label": "MCP 官方入门", "url": "https://modelcontextprotocol.io/docs/getting-started/intro" }
-      ],
-      "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".txt", ".md"]
-    },
-    {
-      "id": "Q06",
-      "phaseId": "version-control",
-      "title": "创建 GitHub 仓库并连接本地项目",
-      "shortTitle": "GitHub 与 SSH",
-      "theme": "让本地项目拥有可分享的远端版本记录。",
-      "task": "创建个人 GitHub 仓库，通过 SSH 连接，在本地克隆或关联仓库，完成一次提交并推送。",
-      "expectation": "能查看 Git 状态和远端地址，知道本地提交与 GitHub 远端仓库不是同一个位置。网络加速工具是可选帮助，不是门槛。",
-      "assessment": "GitHub 仓库、本地 Git 操作、SSH 和远端同步的基础能力。",
-      "outcome": "能把项目版本可靠地保存并分享。",
-      "answerType": "mixed",
-      "answerLabel": "仓库与操作记录",
-      "fields": [
-        { "id": "repository", "label": "GitHub 仓库链接", "type": "url", "placeholder": "https://github.com/用户名/仓库名" }
-      ],
-      "placeholder": "记录你如何确认本地仓库与远端已连接，以及如何验证推送成功……",
-      "resources": [
-        { "label": "随包指南：Git 提交树与分支", "url": "materials/Git提交树与分支指南.md" },
-        { "label": "GitHub：创建仓库", "url": "https://docs.github.com/en/get-started/start-your-journey/creating-a-repository-for-your-project-on-github" },
-        { "label": "GitHub：SSH 连接", "url": "https://docs.github.com/en/authentication/connecting-to-github-with-ssh" },
-        { "label": "Pro Git 中文版", "url": "https://git-scm.com/book/zh/v2" },
-        { "label": "Git & GitHub 实战入门（Bilibili）", "url": "https://www.bilibili.com/video/BV1KarSY8E8v/" }
-      ],
-      "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".txt", ".md"]
-    },
-    {
-      "id": "Q07",
-      "phaseId": "version-control",
-      "title": "画出 Git 提交树和分支关系",
-      "shortTitle": "提交树与分支",
-      "theme": "看懂文件从工作区进入提交，再同步到远端的路径。",
-      "task": "画出工作区、暂存区、本地仓库和 GitHub 远端仓库的关系；在图中表示 `add`、`commit`、`push`、`fetch`、`pull`；再画一个 `main` 与功能分支合并的提交历史示意图。",
-      "expectation": "形式不限，可以手绘、流程图或文字图；重点是关系正确。",
-      "assessment": "对提交记录、分支和本地/远端版本关系的理解。",
-      "outcome": "能读懂基本提交历史，并用分支记录独立功能修改。",
-      "answerType": "textarea",
-      "answerLabel": "关系图说明",
-      "placeholder": "可直接在这里用文字和代码块画图，也可以在下方上传图片或文档。",
-      "resources": [
-        { "label": "随包指南：Git 提交树与分支", "url": "materials/Git提交树与分支指南.md" },
-        { "label": "Pro Git：Git 分支", "url": "https://git-scm.com/book/zh/v2/Git-分支-分支简介" },
-        { "label": "Git & GitHub 实战入门（Bilibili）", "url": "https://www.bilibili.com/video/BV1KarSY8E8v/" }
-      ],
-      "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".txt", ".md"]
-    },
-    {
-      "id": "Q08",
-      "phaseId": "version-control",
-      "title": "安全和版本习惯",
-      "shortTitle": "安全与版本习惯",
-      "theme": "提交前想清楚哪些内容可以分享、记录应该表达什么。",
-      "task": "说明为什么 API Key、密码和隐私数据不应提交到 GitHub；用一段文字说明一次合理的小项目提交顺序。",
-      "expectation": "知道 `.gitignore` 的作用，提交记录能说明改了什么；不会为了“绿格子”提交无意义内容。",
-      "assessment": "版本管理习惯和基本信息安全意识。",
-      "outcome": "知道如何避免把敏感信息和无关文件放进仓库。",
-      "answerType": "textarea",
-      "answerLabel": "安全说明与提交顺序",
-      "placeholder": "描述你会检查哪些文件、如何拆分提交，以及发现密钥误提交后第一时间会做什么……",
-      "resources": [
-        { "label": "随包指南：Git 提交树与分支", "url": "materials/Git提交树与分支指南.md" },
-        { "label": "gitignore 示例", "url": "templates/gitignore示例.txt" },
-        { "label": "GitHub：敏感数据最佳实践", "url": "https://docs.github.com/en/code-security/secret-scanning/introduction/about-secret-scanning" },
-        { "label": "Pro Git 中文版", "url": "https://git-scm.com/book/zh/v2" }
-      ],
-      "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".txt", ".md"]
-    },
-    {
-      "id": "Q09",
-      "phaseId": "build-and-reflect",
-      "title": "选一个实际问题并完成小工具",
-      "shortTitle": "Vibecoding 实战",
-      "theme": "完成一次发现问题、拆分任务、实现和验证的闭环。",
-      "task": "使用 AI Agent 解决一个生活、学习或班级事务中的小问题。可以导入模拟课表后按班级、时间和教室查看课程，也可以整理模拟活动报名表或提出自己的问题。",
-      "expectation": "问题来自真实观察、项目范围可完成；至少有一个能运行的核心流程，页面清楚、操作易懂；能指出 Agent 的错误并检查结果。",
-      "assessment": "想法、需求表达、项目推进、审美、验证与复盘。",
-      "outcome": "完成“发现问题—拆分任务—Agent 辅助实现—实际验证—分享作品”的闭环。",
-      "answerType": "mixed",
-      "answerLabel": "作品提交与验证",
-      "fields": [
-        { "id": "repository", "label": "GitHub 仓库链接（优先）", "type": "url", "placeholder": "https://github.com/用户名/仓库名" }
-      ],
-      "placeholder": "描述你解决的问题、核心功能、完成标准和验证结果。GitHub 链接或源码 ZIP 至少提交一种。",
-      "resources": [
-        { "label": "项目说明模板", "url": "templates/项目说明模板.md" },
-        { "label": "AI 使用记录模板", "url": "templates/AI使用记录模板.md" },
-        { "label": "模拟课表 Excel", "url": "samples/模拟课表.xlsx" },
-        { "label": "随包讲义索引", "url": "materials/资料索引.md" }
-      ],
-      "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".xlsx", ".zip", ".txt", ".md"]
-    },
-    {
-      "id": "Q10",
-      "phaseId": "build-and-reflect",
-      "title": "作品复盘",
-      "shortTitle": "作品复盘",
-      "theme": "为作品负责，也把一次实践变成下一次的经验。",
-      "task": "说明最初的想法、Agent 做了哪些工作、自己如何验证、遇到的一次问题和下一步改进方向。",
-      "expectation": "真实说明过程，不把 Agent 生成的内容都当作正确结果。",
-      "assessment": "责任意识、复盘能力和独立判断。",
-      "outcome": "能够为自己的作品负责，并从一次实践中总结方法。",
-      "answerType": "textarea",
-      "answerLabel": "我的复盘",
-      "placeholder": "可以从“最初想法 / Agent 的帮助 / 我做的验证 / 遇到的问题 / 下一步”依次写起……",
-      "resources": [
-        { "label": "AI 使用记录模板", "url": "templates/AI使用记录模板.md" },
-        { "label": "随包讲义索引", "url": "materials/资料索引.md" }
-      ],
-      "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".txt", ".md"]
-    }
+    { "id": "Q01", "phaseId": "understand-ai", "title": "用自己的话串起 AI 核心概念", "shortTitle": "AI 核心概念", "theme": "建立概念联系", "answerLabel": "我的概念图与说明", "placeholder": "用自己的话解释概念之间的联系，并说明一个具体场景……", "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".txt", ".md"] },
+    { "id": "Q02", "phaseId": "understand-ai", "title": "从AI聊天机器人到工作流，再到 AI Agent", "shortTitle": "聊天、工作流与 Agent", "theme": "比较方法与场景", "answerLabel": "比较表与场景分析", "placeholder": "比较三种做法，并补充提示词、上下文和 Harness 工程之间的关系……", "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".txt", ".md"] },
+    { "id": "Q03", "phaseId": "agent-and-github", "title": "让一个 AI Agent 在你的项目文件夹中工作", "shortTitle": "安装与运行 Agent", "theme": "在指定工作区启动 Agent", "answerLabel": "安装、配置与验证记录", "placeholder": "记录 Agent、操作系统、安装和配置方式、启动与验证过程；不要填写 API Key。", "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".txt", ".md", ".py", ".html"] },
+    { "id": "Q04", "phaseId": "agent-and-github", "title": "探索 Agent 的命令行操作", "shortTitle": "CLI 命令", "theme": "从帮助信息中探索命令", "answerLabel": "命令、用途与结果", "placeholder": "记录至少 5 个实际尝试的操作，并回答题目中的问题。", "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".txt", ".md"] },
+    { "id": "Q05", "phaseId": "agent-and-github", "title": "给 Agent 增加 Skill", "shortTitle": "制作并测试 Skill", "theme": "把重复任务整理为可复用说明", "answerLabel": "Skill 文件、设计与测试记录", "placeholder": "说明真实任务、Skill 设计、调用测试、修改过程和实际价值。", "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".zip", ".txt", ".md"] },
+    { "id": "Q06", "phaseId": "agent-and-github", "title": "创建 GitHub 仓库并连接本地项目", "shortTitle": "GitHub 与 SSH", "theme": "让本地项目拥有远端版本记录", "answerLabel": "仓库链接与操作记录", "placeholder": "填写 GitHub 仓库链接，并记录提交、推送及 SSH 连接验证。", "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".txt", ".md"] },
+    { "id": "Q07", "phaseId": "agent-and-github", "title": "画出本地仓库、远端仓库和分支提交树", "shortTitle": "仓库与分支关系图", "theme": "看懂改动、提交和同步方向", "answerLabel": "关系图与说明", "placeholder": "用箭头表示工作区、暂存区、本地仓库、远端、命令与分支的关系。", "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".txt", ".md"] },
+    { "id": "Q08", "phaseId": "agent-and-github", "title": "实际创建分支并安全地保存版本", "shortTitle": "分支与安全提交", "theme": "实践分支并保护敏感信息", "answerLabel": "操作记录与问题回答", "placeholder": "记录分支、修改、提交、推送和合并，并回答题目中的问题。", "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".txt", ".md"] },
+    { "id": "Q09", "phaseId": "vibecoding", "title": "搭建工作区并连接 GitHub", "shortTitle": "准备实战工作区", "theme": "为作品开发准备工作区与远端仓库", "answerLabel": "工作区、仓库与验证记录", "placeholder": "填写项目文件夹、仓库链接，记录工作区与 SSH 远端验证结果。", "fields": [{ "id": "repository", "label": "GitHub 仓库网页链接", "type": "url", "placeholder": "https://github.com/用户名/仓库名" }], "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".txt", ".md"] },
+    { "id": "Q10", "phaseId": "vibecoding", "title": "终极实战——完成一个可运行的小工具", "shortTitle": "完成一个可运行的小工具", "theme": "完成从问题到验证的项目闭环", "answerLabel": "作品、运行说明与验证记录", "placeholder": "说明问题、需求、Agent 协作、试运行发现、修改验证和作品使用方式。", "fields": [{ "id": "repository", "label": "GitHub 仓库链接（优先）", "type": "url", "placeholder": "https://github.com/用户名/仓库名" }], "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".xlsx", ".zip", ".txt", ".md"] },
+    { "id": "Q11", "phaseId": "vibecoding", "title": "复盘你的作品与学习过程", "shortTitle": "作品与学习复盘", "theme": "总结判断、困难和下一步", "answerLabel": "我的复盘", "placeholder": "按题目中的六个问题复盘；建议 300—600 字，也可以补充录音、视频或图文。", "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".mp3", ".m4a", ".mp4", ".mov", ".txt", ".md"] }
   ],
   "uploadDefaults": {
     "maxFileBytes": 52428800,

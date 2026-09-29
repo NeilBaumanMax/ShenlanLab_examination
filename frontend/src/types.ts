@@ -1,8 +1,3 @@
-export interface Resource {
-  label: string;
-  url: string;
-}
-
 export interface AnswerField {
   id: string;
   label: string;
@@ -15,6 +10,7 @@ export interface Phase {
   title: string;
   summary: string;
   questionIds: string[];
+  tone: "sky" | "indigo" | "teal";
 }
 
 export interface Question {
@@ -23,15 +19,9 @@ export interface Question {
   title: string;
   shortTitle: string;
   theme: string;
-  task: string;
-  expectation: string;
-  assessment: string;
-  outcome: string;
-  answerType: "textarea" | "mixed";
   answerLabel: string;
   placeholder: string;
   fields?: AnswerField[];
-  resources: Resource[];
   allowedExtensions: string[];
 }
 

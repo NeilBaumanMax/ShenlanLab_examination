@@ -26,6 +26,7 @@ PACKAGE_PATHS = (
     "frontend/src",
     "web/dist",
     "content/questions.json",
+    "content/latest-exam.md",
     "materials",
     "templates",
     "samples",

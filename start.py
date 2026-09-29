@@ -45,6 +45,7 @@ QUESTION_DIRECTORIES = {
     "Q08": "Q08_安全与版本习惯",
     "Q09": "Q09_Vibecoding实战",
     "Q10": "Q10_作品复盘",
+    "Q11": "Q11_作品与学习复盘",
 }
 
 
