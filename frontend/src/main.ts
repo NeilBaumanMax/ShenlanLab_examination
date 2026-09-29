@@ -309,10 +309,16 @@ function renderSidePanel(): string {
 function renderShell(content: string): void {
   root!.innerHTML = `<div class="app-shell">
     <header class="topbar">
-      <button class="brand" type="button" data-home>
-        <span class="brand__seal" aria-hidden="true">深</span>
-        <span class="brand__text"><strong>深蓝科技部 AI Agent 应用考核</strong><small>APPLICATION ASSESSMENT</small></span>
-      </button>
+      <div class="topbar__left">
+        <button class="brand" type="button" data-home>
+          <span class="brand__seal" aria-hidden="true">深</span>
+          <span class="brand__text"><strong>深蓝科技部 AI Agent 应用考核</strong><small>APPLICATION ASSESSMENT</small></span>
+        </button>
+        <nav class="project-links" aria-label="项目链接">
+          <a href="https://github.com/NeilBaumanMax/ShenlanLab_examination" target="_blank" rel="noopener noreferrer">项目仓库 <span aria-hidden="true">↗</span></a>
+          <a href="https://github.com/NeilBaumanMax" target="_blank" rel="noopener noreferrer">作者 GitHub <span aria-hidden="true">↗</span></a>
+        </nav>
+      </div>
       <div class="topbar__identity"><span class="identity-avatar" aria-hidden="true">${escapeHtml(activeProfile?.name.slice(0, 1) ?? "")}</span>
         <span>${escapeHtml(activeProfile?.name ?? "")} <small>${escapeHtml(activeProfile?.studentId ?? "")}</small></span>
         <button class="text-button" type="button" data-edit-profile>修改身份</button>
