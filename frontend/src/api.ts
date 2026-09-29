@@ -69,6 +69,10 @@ export function createProfile(name: string, studentId: string): Promise<ProfileR
   });
 }
 
+export function getExistingProfiles(): Promise<{ profiles: StudentProfile[] }> {
+  return request("/api/profiles", { method: "GET" });
+}
+
 export function saveAnswer(
   profile: StudentProfile,
   questionId: string,
