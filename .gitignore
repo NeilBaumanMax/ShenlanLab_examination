@@ -1,0 +1,23 @@
+# Student submissions and local runtime data
+/提交资料/
+/data/
+*.sqlite3
+*.db
+
+# Frontend dependencies and caches
+/frontend/node_modules/
+/frontend/.vite/
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local secrets, logs, and OS files
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
