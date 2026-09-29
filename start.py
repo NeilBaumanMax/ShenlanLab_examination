@@ -541,6 +541,18 @@ class LocalRequestHandler(SimpleHTTPRequestHandler):
             except OSError:
                 self.send_json(500, {"error": "无法读取本机提交目录，请检查文件权限后重试。"})
             return
+        if parsed.path == "/api/profile":
+            query = parse_qs(parsed.query)
+            try:
+                self.handle_existing_profile({
+                    "name": (query.get("name") or [""])[0],
+                    "studentId": (query.get("studentId") or [""])[0],
+                })
+            except RequestProblem as problem:
+                self.send_json(problem.status, {"error": problem.message})
+            except OSError:
+                self.send_json(500, {"error": "无法读取本机提交资料，请检查文件权限后重试。"})
+            return
         if parsed.path == "/api/submission/files":
             query = parse_qs(parsed.query)
             try:
@@ -597,18 +609,32 @@ class LocalRequestHandler(SimpleHTTPRequestHandler):
         with STORAGE_LOCK:
             ensure_student_directory(name, student_id, student_dir, self.submissions_root)
             atomic_write_text(student_dir / "学生信息.txt", profile_text(name, student_id))
-            answers = read_existing_answers(student_dir)
-            attachments = read_existing_attachments(student_dir)
-            file_tree = build_file_tree(student_dir, directory_name)
-        self.send_json(
-            200,
-            {
-                "profile": {"name": name, "studentId": student_id, "directoryName": directory_name},
-                "answers": answers,
-                "attachments": attachments,
-                "fileTree": file_tree,
-            },
+            response = self.profile_response(name, student_id)
+        self.send_json(200, response)
+
+    def handle_existing_profile(self, payload: dict[str, Any]) -> None:
+        name = validate_component(payload.get("name"), "姓名")
+        student_id = validate_component(payload.get("studentId"), "学号")
+        with STORAGE_LOCK:
+            response = self.profile_response(name, student_id)
+        self.send_json(200, response)
+
+    def profile_response(self, name: str, student_id: str) -> dict[str, Any]:
+        name, student_dir, directory_name, student_id = resolve_student_directory(
+            name, student_id, self.submissions_root
         )
+        profiles = list_existing_profiles(self.submissions_root)
+        if not any(item["directoryName"] == directory_name for item in profiles):
+            raise RequestProblem(404, "没有找到这份本机答题资料，请重新选择。")
+        answers = read_existing_answers(student_dir)
+        attachments = read_existing_attachments(student_dir)
+        file_tree = build_file_tree(student_dir, directory_name)
+        return {
+            "profile": {"name": name, "studentId": student_id, "directoryName": directory_name},
+            "answers": answers,
+            "attachments": attachments,
+            "fileTree": file_tree,
+        }
 
     def handle_answer(self, path: str, payload: dict[str, Any]) -> None:
         question_id = unquote(path.rsplit("/", 1)[-1])

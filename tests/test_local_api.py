@@ -410,6 +410,15 @@ class LocalApiTest(unittest.TestCase):
             response["profiles"],
         )
 
+        info_file = self.submissions_root / f"{profile['name']}_{profile['studentId']}" / "学生信息.txt"
+        info_bytes = info_file.read_bytes()
+        info_mtime = info_file.stat().st_mtime_ns
+        status, loaded = self.get_json("/api/profile?" + urlencode(profile))
+        self.assertEqual(status, 200)
+        self.assertEqual(loaded["profile"]["directoryName"], f"{profile['name']}_{profile['studentId']}")
+        self.assertEqual(info_file.read_bytes(), info_bytes)
+        self.assertEqual(info_file.stat().st_mtime_ns, info_mtime)
+
     def test_profile_directory_scan_is_read_only_and_rejects_invalid_entries(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "提交资料"

@@ -4,6 +4,7 @@ import {
   createProfile,
   deleteSubmissionFile,
   getExistingProfiles,
+  getProfile,
   getSubmissionFileTree,
   openSubmissionDirectory,
   saveAnswer,
@@ -197,7 +198,7 @@ function activateProfile(profile: Pick<StudentProfile, "name" | "studentId">): v
   profileRestoreError = "";
   renderProfileLoading();
   const previousDirectory = activeProfile?.directoryName;
-  void createProfile(profile.name, profile.studentId).then((response) => {
+  void getProfile(profile).then((response) => {
     hydrateProfile(response);
     availableProfiles = [response.profile, ...availableProfiles.filter((item) => item.directoryName !== response.profile.directoryName)];
     directoryMessage = previousDirectory && previousDirectory !== response.profile.directoryName

@@ -73,6 +73,11 @@ export function getExistingProfiles(): Promise<{ profiles: StudentProfile[] }> {
   return request("/api/profiles", { method: "GET" });
 }
 
+export function getProfile(profile: Pick<StudentProfile, "name" | "studentId">): Promise<ProfileResponse> {
+  const query = new URLSearchParams({ name: profile.name, studentId: profile.studentId });
+  return request(`/api/profile?${query.toString()}`, { method: "GET" });
+}
+
 export function saveAnswer(
   profile: StudentProfile,
   questionId: string,
