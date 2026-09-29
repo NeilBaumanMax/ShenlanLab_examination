@@ -51,6 +51,8 @@ let identityEditing = false;
 let answerSubmitting: string | null = null;
 let directoryMessage = "";
 let narrowSideTab = "exam";
+let navCollapsed = false;
+let supportCollapsed = false;
 
 type SaveState = "empty" | "dirty" | "review-required" | "saving" | "saved" | "error";
 
@@ -288,6 +290,10 @@ function renderFileTree(): string {
 
 function renderSidePanel(): string {
   return `<aside class="workspace-side" aria-label="答题状态和提交文件">
+    <button class="support-collapse-button" type="button" data-toggle-support aria-expanded="true" aria-label="收起答题卡和提交文件" title="收起右侧工作区">›</button>
+    <button class="support-compact" type="button" data-toggle-support aria-expanded="false" aria-label="展开答题卡和提交文件">
+      <span aria-hidden="true">‹</span><strong data-compact-progress>${progressCount()}/${data.questions.length}</strong><small>答题卡</small>
+    </button>
     <div class="side-tabs" role="tablist" aria-label="侧栏内容">
       <button type="button" role="tab" aria-selected="${narrowSideTab === "exam"}" data-side-tab="exam">答题卡</button>
       <button type="button" role="tab" aria-selected="${narrowSideTab === "files"}" data-side-tab="files">提交文件</button>
@@ -307,8 +313,9 @@ function renderSidePanel(): string {
 }
 
 function renderShell(content: string): void {
-  root!.innerHTML = `<div class="app-shell">
+  root!.innerHTML = `<div class="app-shell${navCollapsed ? " is-nav-collapsed" : ""}${supportCollapsed ? " is-support-collapsed" : ""}">
     <header class="topbar">
+      <button class="rail-toggle" type="button" data-toggle-nav aria-expanded="${!navCollapsed}" aria-label="${navCollapsed ? "展开左侧导航" : "收起左侧导航"}" title="${navCollapsed ? "展开左侧导航" : "收起左侧导航"}">${navCollapsed ? "›" : "‹"}</button>
       <div class="topbar__left">
         <button class="brand" type="button" data-home>
           <span class="brand__seal" aria-hidden="true">深</span>
@@ -426,6 +433,8 @@ function updateLiveStatus(questionId: string): void {
   });
   const count = root!.querySelector<HTMLElement>(".side-panel__heading span");
   if (count) count.textContent = `${progressCount()} / ${data.questions.length} 已提交`;
+  const compactCount = root!.querySelector<HTMLElement>("[data-compact-progress]");
+  if (compactCount) compactCount.textContent = `${progressCount()}/${data.questions.length}`;
 }
 
 function updateDraftStatus(questionId: string): void {
@@ -596,6 +605,27 @@ root.addEventListener("change", (event) => {
 root.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
+  const navToggle = target.closest<HTMLButtonElement>("[data-toggle-nav]");
+  if (navToggle) {
+    navCollapsed = !navCollapsed;
+    const shell = navToggle.closest<HTMLElement>(".app-shell");
+    shell?.classList.toggle("is-nav-collapsed", navCollapsed);
+    navToggle.setAttribute("aria-expanded", String(!navCollapsed));
+    navToggle.setAttribute("aria-label", navCollapsed ? "展开左侧导航" : "收起左侧导航");
+    navToggle.title = navCollapsed ? "展开左侧导航" : "收起左侧导航";
+    navToggle.textContent = navCollapsed ? "›" : "‹";
+    return;
+  }
+  const supportToggle = target.closest<HTMLButtonElement>("[data-toggle-support]");
+  if (supportToggle) {
+    supportCollapsed = !supportCollapsed;
+    const shell = supportToggle.closest<HTMLElement>(".app-shell");
+    shell?.classList.toggle("is-support-collapsed", supportCollapsed);
+    shell?.querySelectorAll<HTMLButtonElement>("[data-toggle-support]").forEach((button) => {
+      button.setAttribute("aria-expanded", String(!supportCollapsed));
+    });
+    return;
+  }
   if (target.closest("[data-retry-profiles]")) {
     loadLocalProfiles();
     return;
