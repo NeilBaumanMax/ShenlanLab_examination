@@ -1,5 +1,6 @@
 import "./style.css";
 import questionData from "../../content/questions.json";
+import { createProfile, saveAnswer, type StudentProfile } from "./api";
 import type { Phase, Question, QuestionData } from "./types";
 
 /*
@@ -21,7 +22,15 @@ const questionsById = new Map(data.questions.map((question) => [question.id, que
 const phasesById = new Map(data.phases.map((phase) => [phase.id, phase]));
 const answerDrafts = new Map<string, Record<string, string>>();
 const attachmentDrafts = new Map<string, string[]>();
+const saveStates = new Map<string, SaveState>();
+const saveErrors = new Map<string, string>();
+const pendingSaves = new Map<string, ReturnType<typeof setTimeout>>();
+const answerRevisions = new Map<string, number>();
 let activeQuestionId: string | null = null;
+let activeProfile: StudentProfile | null = null;
+let profileSubmitting = false;
+
+type SaveState = "not-started" | "profile-required" | "pending" | "saving" | "saved" | "error";
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => {
@@ -51,6 +60,36 @@ function progressCount(): number {
   ).length;
 }
 
+function hasAnswer(questionId: string): boolean {
+  return Object.values(answerDrafts.get(questionId) ?? {}).some((value) => value.trim().length > 0);
+}
+
+function statusLabel(status: SaveState): string {
+  const labels: Record<SaveState, string> = {
+    "not-started": "未开始",
+    "profile-required": "先填写学生信息",
+    pending: "待保存",
+    saving: "保存中",
+    saved: "已保存",
+    error: "保存失败",
+  };
+  return labels[status];
+}
+
+function statusClass(status: SaveState): string {
+  if (status === "saved") return "is-saved";
+  if (status === "error") return "is-error";
+  if (status === "pending" || status === "saving" || status === "profile-required") return "is-pending";
+  return "";
+}
+
+function statusGuidance(questionId: string, status: SaveState): string {
+  if (status === "profile-required") return "先填写姓名和学号，创建本机提交目录后即可保存。";
+  if (status === "error") return `${saveErrors.get(questionId) ?? "本机保存失败。"} 修改答案后会自动重试。`;
+  if (status === "saved") return "答案已保存到本机个人资料目录。";
+  return "保存到本机，不会上传。输入后稍等片刻，直到显示“已保存”。";
+}
+
 function phaseQuestionCount(phase: Phase): number {
   return phase.questionIds.filter((id) => {
     const fields = answerDrafts.get(id);
@@ -65,8 +104,7 @@ function renderNavigation(): string {
         .map((id) => {
           const question = questionsById.get(id);
           if (!question) return "";
-          const answered = phaseQuestionCount(phase) > 0 &&
-            Object.values(answerDrafts.get(id) ?? {}).some((value) => value.trim().length > 0);
+          const answered = hasAnswer(id);
           const current = activeQuestionId === id;
           return `
             <button class="route-link${current ? " is-current" : ""}${answered ? " is-answered" : ""}"
@@ -78,7 +116,7 @@ function renderNavigation(): string {
         .join("");
 
       return `
-        <section class="route-group" aria-label="${escapeHtml(phase.title)}">
+        <section class="route-group" aria-label="${escapeHtml(phase.title)}" data-phase="${escapeHtml(phase.id)}">
           <div class="route-group__heading">
             <span>${escapeHtml(phase.title)}</span>
             <span class="route-group__count">${phaseQuestionCount(phase)}/${phase.questionIds.length}</span>
@@ -115,19 +153,69 @@ function renderShell(content: string): void {
           <div class="topbar__actions">
             <span class="topbar__progress">已填写 <strong>${count}</strong> / 10</span>
             <details class="identity-menu">
-              <summary><span class="identity-avatar" aria-hidden="true">学</span><span>学生信息</span><span class="chevron" aria-hidden="true">⌄</span></summary>
-              <div class="identity-menu__panel">
-                <p>填写后，答题资料会保存在这台电脑。</p>
-                <label>姓名<input name="studentName" autocomplete="name" placeholder="你的姓名"></label>
-                <label>学号<input name="studentId" autocomplete="off" placeholder="你的学号"></label>
-                <span class="save-note">学生信息保存在本地文件夹</span>
-              </div>
+              <summary><span class="identity-avatar" aria-hidden="true">${activeProfile ? escapeHtml(activeProfile.name.slice(0, 1)) : "学"}</span><span>${activeProfile ? escapeHtml(activeProfile.name) : "学生信息"}</span><span class="chevron" aria-hidden="true">⌄</span></summary>
+              <form class="identity-menu__panel" data-profile-form>
+                <p>填写姓名和学号，用于命名本机答题资料目录。重新打开时填写相同信息即可恢复。</p>
+                <label>姓名<input name="name" autocomplete="name" maxlength="48" required value="${escapeHtml(activeProfile?.name ?? "")}" placeholder="你的姓名"></label>
+                <label>学号<input name="studentId" autocomplete="off" maxlength="48" required value="${escapeHtml(activeProfile?.studentId ?? "")}" placeholder="你的学号"></label>
+                <button class="button button--primary" type="submit" ${profileSubmitting ? "disabled" : ""}>${profileSubmitting ? "正在打开本机资料…" : "保存身份并恢复进度"}</button>
+                <span class="save-note" data-profile-message role="status">${activeProfile ? `当前目录：${escapeHtml(activeProfile.directoryName)}` : "身份信息仅用于本地目录，不会上传。"}</span>
+              </form>
             </details>
           </div>
         </header>
         <main class="workspace" id="main-content">${content}</main>
       </div>
     </div>`;
+
+  root!.querySelector<HTMLFormElement>("[data-profile-form]")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
+    const message = form.querySelector<HTMLElement>("[data-profile-message]");
+    const button = form.querySelector<HTMLButtonElement>("button[type='submit']");
+    const formData = new FormData(form);
+    const name = String(formData.get("name") ?? "");
+    const studentId = String(formData.get("studentId") ?? "");
+    if (activeProfile && (name.trim() !== activeProfile.name || studentId.trim() !== activeProfile.studentId)) {
+      if (message) message.textContent = "此运行中的 App 已关联当前学生目录。若要换用其他身份，请重新启动后再填写。";
+      return;
+    }
+    profileSubmitting = true;
+    if (button) button.disabled = true;
+    if (message) message.textContent = "正在读取本机已有进度…";
+    try {
+      const response = await createProfile(name, studentId);
+      const unsavedDrafts = new Map(answerDrafts);
+      answerDrafts.clear();
+      for (const [questionId, fields] of Object.entries(response.answers)) {
+        answerDrafts.set(questionId, fields);
+        saveStates.set(questionId, "saved");
+      }
+      const draftsToSave: string[] = [];
+      for (const [questionId, fields] of unsavedDrafts) {
+        if (Object.values(fields).some((value) => value.trim().length > 0)) {
+          answerDrafts.set(questionId, fields);
+          if (JSON.stringify(fields) !== JSON.stringify(response.answers[questionId] ?? {})) draftsToSave.push(questionId);
+        }
+      }
+      activeProfile = response.profile;
+      profileSubmitting = false;
+      const details = root!.querySelector<HTMLDetailsElement>(".identity-menu");
+      if (details) details.open = false;
+      if (activeQuestionId) {
+        const current = questionsById.get(activeQuestionId);
+        if (current) renderQuestion(current);
+        else renderHome();
+      } else {
+        renderHome();
+      }
+      for (const questionId of draftsToSave) scheduleAnswerSave(questionId);
+    } catch (error) {
+      profileSubmitting = false;
+      if (button) button.disabled = false;
+      if (message) message.textContent = error instanceof Error ? error.message : "无法打开本机资料，请重试。";
+    }
+  });
 }
 
 function renderHome(): void {
@@ -174,7 +262,7 @@ function renderHome(): void {
       <button class="text-button" type="button" data-checklist>查看提交方式 <span aria-hidden="true">→</span></button>
     </section>
 
-    <dialog class="checklist-dialog" aria-labelledby="checklist-title">
+      <dialog class="checklist-dialog" aria-labelledby="checklist-title">
       <form method="dialog"><button class="dialog-close" aria-label="关闭">×</button></form>
       <p class="section-kicker">提交资料</p><h2 id="checklist-title">完成后这样提交</h2>
       <ol><li>检查每题的答案与附件。</li><li>项目实战题提交 GitHub 链接或源码 ZIP。</li><li>点击“打开提交目录”，手动压缩自己的资料文件夹。</li><li>通过 QQ 邮箱发送给组织者。</li></ol>
@@ -210,6 +298,7 @@ function renderQuestion(question: Question): void {
     .join("");
   const attachments = attachmentDrafts.get(question.id) ?? [];
   const allowedExtensions = question.allowedExtensions.join(",");
+  const currentSaveState = saveStates.get(question.id) ?? "not-started";
 
   renderShell(`
     <div class="question-heading">
@@ -246,7 +335,8 @@ function renderQuestion(question: Question): void {
         </div>
         <form class="answer-form" autocomplete="off">
           <div class="answer-form__heading"><div><p class="section-kicker">本题作答</p><h2>我的回答</h2></div>
-            <span class="save-state" data-save-state><span class="save-state__dot"></span>未开始</span></div>
+            <span class="save-state ${statusClass(currentSaveState)}" data-save-state aria-live="polite"><span class="save-state__dot"></span>${statusLabel(currentSaveState)}</span></div>
+          <p class="save-guidance" data-save-guidance>${escapeHtml(statusGuidance(question.id, currentSaveState))}</p>
           ${fields}
           <label class="answer-field" for="answer-${escapeHtml(question.id)}"><span>${escapeHtml(question.answerLabel)}</span>
             <textarea id="answer-${escapeHtml(question.id)}" name="answer" rows="7" data-answer-field="answer" placeholder="${escapeHtml(question.placeholder)}">${escapeHtml(answer.answer ?? "")}</textarea>
@@ -269,14 +359,14 @@ function renderQuestion(question: Question): void {
           <div class="save-card__top"><span class="save-card__symbol" aria-hidden="true">⌂</span><span class="local-badge">本机</span></div>
           <h2>你的进度，<br>留在这台电脑。</h2>
           <p>填写姓名和学号后，答案会保存到个人提交目录。重新打开同一份 App 可以接着完成。</p>
-          <div class="save-card__state"><span class="save-state__dot"></span><span>自动保存接入施工中</span></div>
+          <div class="save-card__state ${statusClass(currentSaveState)}" data-local-save-state><span class="save-state__dot"></span><span>${statusLabel(currentSaveState)}</span></div>
         </section>
         <section class="aside-route">
           <div class="aside-route__heading"><h2>本阶段</h2><span>${phaseQuestionCount(phase ?? data.phases[0])}/${phase?.questionIds.length ?? 0} 已填写</span></div>
           ${(phase?.questionIds ?? []).map((id) => {
             const item = questionsById.get(id);
             if (!item) return "";
-            const answered = Object.values(answerDrafts.get(id) ?? {}).some((value) => value.trim().length > 0);
+            const answered = hasAnswer(id);
             return `<button type="button" class="aside-route__item${id === question.id ? " is-current" : ""}" data-question="${escapeHtml(id)}"><span class="aside-route__check">${answered ? "✓" : ""}</span><span>${escapeHtml(item.shortTitle)}</span></button>`;
           }).join("")}
         </section>
@@ -294,7 +384,7 @@ function renderQuestion(question: Question): void {
   root!.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("[data-answer-field]").forEach((field) => {
     field.addEventListener("input", () => {
       getAnswer(question.id)[field.dataset.answerField ?? "answer"] = field.value;
-      updateDraftStatus();
+      updateDraftStatus(question.id);
     });
   });
   root!.querySelector<HTMLInputElement>("[data-attachments]")?.addEventListener("change", (event) => {
@@ -319,14 +409,107 @@ function renderQuestion(question: Question): void {
   root!.querySelector<HTMLButtonElement>("[data-next]")?.addEventListener("click", () => moveQuestion(question.id, 1));
 }
 
-function updateDraftStatus(): void {
-  const status = root!.querySelector<HTMLElement>("[data-save-state]");
-  if (status) {
-    status.classList.add("is-pending");
-    status.innerHTML = '<span class="save-state__dot"></span>待保存';
+function updateDraftStatus(questionId: string): void {
+  saveErrors.delete(questionId);
+  if (activeProfile) {
+    saveStates.set(questionId, "pending");
+    scheduleAnswerSave(questionId);
+  } else {
+    saveStates.set(questionId, "profile-required");
   }
+  renderCurrentSaveState(questionId);
   const count = root!.querySelector<HTMLElement>(".topbar__progress strong");
   if (count) count.textContent = String(progressCount());
+  for (const phase of data.phases) {
+    const counter = root!.querySelector<HTMLElement>(`[data-phase="${CSS.escape(phase.id)}"] .route-group__count`);
+    if (counter) counter.textContent = `${phaseQuestionCount(phase)}/${phase.questionIds.length}`;
+  }
+  root!.querySelectorAll<HTMLButtonElement>(".route-link[data-question]").forEach((button) => {
+    const answered = hasAnswer(button.dataset.question ?? "");
+    button.classList.toggle("is-answered", answered);
+    const marker = button.querySelector<HTMLElement>(".route-link__marker");
+    if (marker) marker.textContent = answered ? "✓" : (button.dataset.question ?? "").slice(1);
+  });
+  root!.querySelectorAll<HTMLButtonElement>(".aside-route__item[data-question]").forEach((button) => {
+    const answered = hasAnswer(button.dataset.question ?? "");
+    const marker = button.querySelector<HTMLElement>(".aside-route__check");
+    if (marker) marker.textContent = answered ? "✓" : "";
+  });
+  const asideCounter = root!.querySelector<HTMLElement>(".aside-route__heading span");
+  const currentQuestion = questionsById.get(questionId);
+  const currentPhase = currentQuestion ? phasesById.get(currentQuestion.phaseId) : undefined;
+  if (asideCounter && currentPhase) asideCounter.textContent = `${phaseQuestionCount(currentPhase)}/${currentPhase.questionIds.length} 已填写`;
+}
+
+function scheduleAnswerSave(questionId: string): void {
+  if (!activeProfile) return;
+  const previousTimer = pendingSaves.get(questionId);
+  if (previousTimer) clearTimeout(previousTimer);
+  const revision = (answerRevisions.get(questionId) ?? 0) + 1;
+  answerRevisions.set(questionId, revision);
+  saveStates.set(questionId, "pending");
+  pendingSaves.set(questionId, setTimeout(async () => {
+    pendingSaves.delete(questionId);
+    if (!activeProfile) return;
+    const profile = activeProfile;
+    const snapshot = { ...getAnswer(questionId) };
+    saveStates.set(questionId, "saving");
+    renderCurrentSaveState(questionId);
+    try {
+      await saveAnswer(profile, questionId, snapshot);
+      if (answerRevisions.get(questionId) === revision) saveStates.set(questionId, "saved");
+      else return;
+    } catch (error) {
+      if (answerRevisions.get(questionId) === revision) {
+        saveStates.set(questionId, "error");
+        saveErrors.set(questionId, error instanceof Error ? error.message : "本机保存失败，请检查启动窗口和资料目录权限。");
+      }
+      else return;
+    }
+    renderCurrentSaveState(questionId);
+  }, 650));
+}
+
+function flushPendingAnswers(): void {
+  if (!activeProfile) return;
+  const profile = activeProfile;
+  for (const [questionId, timer] of pendingSaves) {
+    clearTimeout(timer);
+    pendingSaves.delete(questionId);
+    const snapshot = { ...getAnswer(questionId) };
+    void saveAnswer(profile, questionId, snapshot, true).then(() => {
+      saveStates.set(questionId, "saved");
+      saveErrors.delete(questionId);
+      renderCurrentSaveState(questionId);
+    }).catch(() => {
+      saveStates.set(questionId, "error");
+      saveErrors.set(questionId, "离开页面前保存失败，请重新打开本机服务并检查提交目录。");
+      renderCurrentSaveState(questionId);
+    });
+  }
+}
+
+window.addEventListener("pagehide", flushPendingAnswers);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") flushPendingAnswers();
+});
+
+function renderCurrentSaveState(questionId: string): void {
+  if (activeQuestionId !== questionId) return;
+  const state = saveStates.get(questionId) ?? "not-started";
+  const status = root!.querySelector<HTMLElement>("[data-save-state]");
+  if (status) {
+    status.className = `save-state ${statusClass(state)}`.trim();
+    status.innerHTML = `<span class="save-state__dot"></span>${statusLabel(state)}`;
+  }
+  const guidance = root!.querySelector<HTMLElement>("[data-save-guidance]");
+  if (guidance) guidance.textContent = statusGuidance(questionId, state);
+  const localState = root!.querySelector<HTMLElement>("[data-local-save-state]");
+  if (localState) {
+    localState.className = `save-card__state ${statusClass(state)}`.trim();
+    const label = localState.querySelector("span:last-child");
+    if (label) label.textContent = statusLabel(state);
+  }
 }
 
 function moveQuestion(currentId: string, offset: number): void {
