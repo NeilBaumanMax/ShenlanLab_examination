@@ -101,27 +101,27 @@ Use a compact 4/8/16/24/32px spacing rhythm. Put more space before a new section
 
 ## Elevation & Depth
 
-Prefer tonal layering and a quiet one-pixel line. Use a restrained offset shadow only when a surface must separate from the page; do not stack a strong border and broad shadow on the same resting panel.
+Use Liquid Glass as functional chrome, not as a decorative filter: the sticky top bar and supporting answer/file panels may use translucent, saturated blur with an offset shadow so content can move beneath them. Keep task instructions, answer fields, file rows, and long-form reading on opaque high-contrast surfaces. Never stack translucent layers over one another. Where `backdrop-filter` is unavailable or transparency reduction is requested, fall back to a near-opaque surface with a defined edge.
 
 ## Shapes
 
-Use practical 8–12px corners on controls and task surfaces, with up to 20px reserved for the primary welcome surface. Keep buttons and fields rectangular enough to read as dependable tools; pills are for compact status labels only.
+Use 14–18px corners for work panels, 12–14px for buttons and fields, and up to 24px for the identity surface. Keep controls tactile and consistent; pills are for compact status labels and segmented controls only.
 
 ## Components
 
 ### Buttons
-- **Primary:** Deep blue fill, white text, 8px corners, 10px by 16px padding.
+- **Primary:** Deep blue fill, white text, 12px corners, 10px by 16px padding; immediate subtle press feedback.
 - **Hover / Focus:** Deepen the fill for hover; show a visible keyboard focus ring without shifting layout.
 - **Secondary:** White or pale blue fill with a quiet line; preserve the same shape and height.
 
 ### Cards / Containers
-- **Corner Style:** 12px on task surfaces.
-- **Background:** Paper white on the reading canvas.
-- **Border:** Quiet line; use tonal contrast before adding a shadow.
+- **Corner Style:** 16px on task surfaces; compact floating chrome may use a 20px radius.
+- **Background:** Opaque paper white on task and answer surfaces; translucent glass only on structural chrome and supporting panels.
+- **Border:** Quiet translucent edge on glass; use one clear separation method and a soft offset shadow, not a heavy border-plus-shadow stack.
 - **Internal Padding:** 24px desktop, 16px narrow screens.
 
 ### Inputs / Fields
-- **Style:** White fill, quiet line, 8px corners, 44px minimum height.
+- **Style:** White fill, quiet line, 12px corners, 44px minimum height.
 - **Focus:** Clear blue outline with a small separation from the field edge.
 - **Error / Disabled:** Explain recovery in text; do not rely on color alone.
 
