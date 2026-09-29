@@ -160,6 +160,7 @@ export function extractStudentOverview(document: string): string[] {
   const headings = [
     "## 二、作答与提交说明",
     "## 三、我们如何看待你的表现",
+    "## 四、建议组织者随题提供的资料",
     "## 五、学习资料与工具入口",
     "## 六、最终提交清单",
   ];

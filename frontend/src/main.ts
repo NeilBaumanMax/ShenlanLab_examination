@@ -335,7 +335,7 @@ function renderHome(): void {
   }).join("");
   const next = data.questions.find((question) => !isSubmitted(question.id)) ?? data.questions[0];
   const additional = extractStudentOverview(examMarkdown);
-  const additionalTitles = ["作答与提交说明", "我们如何看待你的表现", "学习资料与工具入口", "最终提交清单"];
+  const additionalTitles = ["作答与提交说明", "我们如何看待你的表现", "建议组织者随题提供的资料", "学习资料与工具入口", "最终提交清单"];
   const summaryDetails = `<details class="overview-details"><summary>考核方式、对象与目的</summary><div class="overview-details__content">${renderMarkdown(extractExamSummary(examMarkdown))}</div></details>`;
   const details = additional.map((section, index) => `<details class="overview-details"><summary>${additionalTitles[index] ?? "补充说明"}</summary><div class="overview-details__content">${renderMarkdown(section)}</div></details>`).join("");
   renderShell(`<section class="home-heading">
