@@ -1,6 +1,6 @@
 import "./style.css";
 import questionData from "../../content/questions.json";
-import { createProfile, saveAnswer, type StudentProfile } from "./api";
+import { createProfile, removeAttachment, saveAnswer, uploadAttachment, type StudentProfile } from "./api";
 import type { Phase, Question, QuestionData } from "./types";
 
 /*
@@ -24,13 +24,16 @@ const answerDrafts = new Map<string, Record<string, string>>();
 const attachmentDrafts = new Map<string, string[]>();
 const saveStates = new Map<string, SaveState>();
 const saveErrors = new Map<string, string>();
+const attachmentMessages = new Map<string, string>();
 const pendingSaves = new Map<string, ReturnType<typeof setTimeout>>();
 const answerRevisions = new Map<string, number>();
+const inFlightSaves = new Map<string, Promise<unknown>>();
+const uploadingQuestions = new Set<string>();
 let activeQuestionId: string | null = null;
 let activeProfile: StudentProfile | null = null;
 let profileSubmitting = false;
 
-type SaveState = "not-started" | "profile-required" | "pending" | "saving" | "saved" | "error";
+type SaveState = "not-started" | "profile-required" | "review-required" | "pending" | "saving" | "saved" | "error";
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => {
@@ -55,19 +58,30 @@ function getAnswer(questionId: string): Record<string, string> {
 }
 
 function progressCount(): number {
-  return [...answerDrafts.values()].filter((fields) =>
-    Object.values(fields).some((value) => value.trim().length > 0),
-  ).length;
+  return data.questions.filter((question) => hasAnswer(question.id)).length;
 }
 
 function hasAnswer(questionId: string): boolean {
-  return Object.values(answerDrafts.get(questionId) ?? {}).some((value) => value.trim().length > 0);
+  return Object.values(answerDrafts.get(questionId) ?? {}).some((value) => value.trim().length > 0)
+    || (attachmentDrafts.get(questionId)?.length ?? 0) > 0;
+}
+
+function hasPotentialSecret(text: string): boolean {
+  const patterns = [
+    /sk-(?:ant-)?[A-Za-z0-9_-]{16,}/i,
+    /gh[pousr]_[A-Za-z0-9]{20,}/,
+    /AIza[0-9A-Za-z_-]{30,}/,
+    /AKIA[0-9A-Z]{16}/,
+    /(?:api[_ -]?key|password|secret|密钥|密码)\s*[:=：]\s*["']?[A-Za-z0-9_./+=-]{8,}/i,
+  ];
+  return patterns.some((pattern) => pattern.test(text));
 }
 
 function statusLabel(status: SaveState): string {
   const labels: Record<SaveState, string> = {
     "not-started": "未开始",
     "profile-required": "先填写学生信息",
+    "review-required": "请检查敏感信息",
     pending: "待保存",
     saving: "保存中",
     saved: "已保存",
@@ -79,11 +93,12 @@ function statusLabel(status: SaveState): string {
 function statusClass(status: SaveState): string {
   if (status === "saved") return "is-saved";
   if (status === "error") return "is-error";
-  if (status === "pending" || status === "saving" || status === "profile-required") return "is-pending";
+  if (status === "pending" || status === "saving" || status === "profile-required" || status === "review-required") return "is-pending";
   return "";
 }
 
 function statusGuidance(questionId: string, status: SaveState): string {
+  if (status === "review-required") return "检测到内容可能包含密钥或密码。请删除或打码后再保存；检查仅在本机进行。";
   if (status === "profile-required") return "先填写姓名和学号，创建本机提交目录后即可保存。";
   if (status === "error") return `${saveErrors.get(questionId) ?? "本机保存失败。"} 修改答案后会自动重试。`;
   if (status === "saved") return "答案已保存到本机个人资料目录。";
@@ -91,10 +106,7 @@ function statusGuidance(questionId: string, status: SaveState): string {
 }
 
 function phaseQuestionCount(phase: Phase): number {
-  return phase.questionIds.filter((id) => {
-    const fields = answerDrafts.get(id);
-    return fields && Object.values(fields).some((value) => value.trim().length > 0);
-  }).length;
+  return phase.questionIds.filter(hasAnswer).length;
 }
 
 function renderNavigation(): string {
@@ -189,13 +201,21 @@ function renderShell(content: string): void {
       answerDrafts.clear();
       for (const [questionId, fields] of Object.entries(response.answers)) {
         answerDrafts.set(questionId, fields);
-        saveStates.set(questionId, "saved");
+        saveStates.set(questionId, hasPotentialSecret(Object.values(fields).join("\n")) ? "review-required" : "saved");
+      }
+      for (const [questionId, attachments] of Object.entries(response.attachments ?? {})) {
+        attachmentDrafts.set(questionId, attachments.map((attachment) => attachment.name));
       }
       const draftsToSave: string[] = [];
       for (const [questionId, fields] of unsavedDrafts) {
         if (Object.values(fields).some((value) => value.trim().length > 0)) {
           answerDrafts.set(questionId, fields);
-          if (JSON.stringify(fields) !== JSON.stringify(response.answers[questionId] ?? {})) draftsToSave.push(questionId);
+          if (hasPotentialSecret(Object.values(fields).join("\n"))) {
+            saveStates.set(questionId, "review-required");
+          } else if (JSON.stringify(fields) !== JSON.stringify(response.answers[questionId] ?? {})) {
+            saveStates.set(questionId, "pending");
+            draftsToSave.push(questionId);
+          }
         }
       }
       activeProfile = response.profile;
@@ -299,6 +319,9 @@ function renderQuestion(question: Question): void {
   const attachments = attachmentDrafts.get(question.id) ?? [];
   const allowedExtensions = question.allowedExtensions.join(",");
   const currentSaveState = saveStates.get(question.id) ?? "not-started";
+  const credentialWarning = hasPotentialSecret(Object.values(answer).join("\n"));
+  const attachmentMessage = attachmentMessages.get(question.id) ?? (activeProfile ? "" : "先填写学生信息，再添加附件。");
+  const uploading = uploadingQuestions.has(question.id);
 
   renderShell(`
     <div class="question-heading">
@@ -343,10 +366,11 @@ function renderQuestion(question: Question): void {
           </label>
           <div class="attachment-box">
             <div><strong>添加附件</strong><span>单个文件不超过 50 MB。不会自动打开或运行附件。</span></div>
-            <label class="button button--secondary upload-button">选择文件<input type="file" multiple accept="${escapeHtml(allowedExtensions)}" data-attachments></label>
-            <ul class="attachment-list">${attachments.map((name) => `<li>${escapeHtml(name)}<button type="button" aria-label="移除 ${escapeHtml(name)}" data-remove-file="${escapeHtml(name)}">移除</button></li>`).join("")}</ul>
+            <label class="button button--secondary upload-button${!activeProfile || uploading ? " is-disabled" : ""}">${uploading ? "上传中…" : "选择文件"}<input type="file" multiple accept="${escapeHtml(allowedExtensions)}" data-attachments ${!activeProfile || uploading ? "disabled" : ""}></label>
+            <ul class="attachment-list">${attachments.map((name) => `<li>${escapeHtml(name)}<button type="button" aria-label="移除 ${escapeHtml(name)}" data-remove-file="${escapeHtml(name)}" ${uploading ? "disabled" : ""}>移除</button></li>`).join("")}</ul>
           </div>
-          <p class="form-footnote">请勿在答案或附件中填写 API Key、密码或私人信息。</p>
+          <p class="attachment-message" data-attachment-message role="status" ${attachmentMessage ? "" : "hidden"}>${escapeHtml(attachmentMessage)}</p>
+          <p class="form-footnote${credentialWarning ? " is-warning" : ""}" data-credential-warning role="status">${credentialWarning ? "检测到内容可能包含密钥或密码。请删除或打码后再保存；检查仅在本机进行。" : "请勿在答案或附件中填写 API Key、密码或私人信息。"}</p>
         </form>
         <div class="question-pager">
           <button class="button button--secondary" type="button" data-previous="${escapeHtml(question.id)}" ${questionPosition === 1 ? "disabled" : ""}>← 上一题</button>
@@ -389,17 +413,11 @@ function renderQuestion(question: Question): void {
   });
   root!.querySelector<HTMLInputElement>("[data-attachments]")?.addEventListener("change", (event) => {
     const input = event.currentTarget as HTMLInputElement;
-    const names = attachmentDrafts.get(question.id) ?? [];
-    for (const file of Array.from(input.files ?? [])) {
-      if (!names.includes(file.name)) names.push(file.name);
-    }
-    attachmentDrafts.set(question.id, names);
-    renderQuestion(question);
+    void uploadSelectedFiles(question, Array.from(input.files ?? []));
   });
   root!.querySelectorAll<HTMLButtonElement>("[data-remove-file]").forEach((button) => {
     button.addEventListener("click", () => {
-      attachmentDrafts.set(question.id, attachments.filter((name) => name !== button.dataset.removeFile));
-      renderQuestion(question);
+      void deleteAttachment(question, button.dataset.removeFile ?? "");
     });
   });
   root!.querySelectorAll<HTMLButtonElement>("[data-checklist]").forEach((button) => {
@@ -409,9 +427,83 @@ function renderQuestion(question: Question): void {
   root!.querySelector<HTMLButtonElement>("[data-next]")?.addEventListener("click", () => moveQuestion(question.id, 1));
 }
 
+async function uploadSelectedFiles(question: Question, files: File[]): Promise<void> {
+  if (!activeProfile) {
+    attachmentMessages.set(question.id, "先填写学生信息，再添加附件。");
+    renderQuestion(question);
+    return;
+  }
+  const profile = activeProfile;
+  if (!files.length) return;
+  attachmentMessages.delete(question.id);
+  uploadingQuestions.add(question.id);
+  renderQuestion(question);
+  const savedNames = attachmentDrafts.get(question.id) ?? [];
+  const allowed = new Set(question.allowedExtensions.map((extension) => extension.toLowerCase()));
+  let savedCount = 0;
+  const errors: string[] = [];
+  try {
+    for (const file of files) {
+      const extensionIndex = file.name.lastIndexOf(".");
+      const extension = extensionIndex >= 0 ? file.name.slice(extensionIndex).toLowerCase() : "";
+      if (!allowed.has(extension)) {
+        errors.push(`${file.name}：本题不支持这种文件类型。`);
+        continue;
+      }
+      if (file.size > data.uploadDefaults.maxFileBytes) {
+        errors.push(`${file.name}：单个附件不能超过 50 MB。`);
+        continue;
+      }
+      try {
+        if ([".txt", ".md"].includes(extension) && hasPotentialSecret(await file.text())) {
+          const proceed = window.confirm(`${file.name} 可能包含 API Key 或密码。建议先打码。确认仍要将它保存在本机答题目录吗？`);
+          if (!proceed) continue;
+        }
+        await flushAnswerNow(question.id);
+        const stored = await uploadAttachment(profile, question.id, file);
+        if (!savedNames.includes(stored.name)) savedNames.push(stored.name);
+        attachmentDrafts.set(question.id, savedNames);
+        savedCount += 1;
+      } catch (error) {
+        errors.push(`${file.name}：${error instanceof Error ? error.message : "保存失败，请重试。"}`);
+      }
+    }
+  } finally {
+    uploadingQuestions.delete(question.id);
+    if (errors.length) attachmentMessages.set(question.id, errors.join(" "));
+    else if (savedCount) attachmentMessages.set(question.id, `${savedCount} 个附件已保存到本机。`);
+    renderQuestion(question);
+  }
+}
+
+async function deleteAttachment(question: Question, filename: string): Promise<void> {
+  if (!activeProfile || uploadingQuestions.has(question.id)) return;
+  const profile = activeProfile;
+  attachmentMessages.delete(question.id);
+  uploadingQuestions.add(question.id);
+  renderQuestion(question);
+  try {
+    await flushAnswerNow(question.id);
+    await removeAttachment(profile, question.id, filename);
+    attachmentDrafts.set(question.id, (attachmentDrafts.get(question.id) ?? []).filter((name) => name !== filename));
+    attachmentMessages.set(question.id, "附件已从本机资料目录移除。");
+  } catch (error) {
+    attachmentMessages.set(question.id, error instanceof Error ? error.message : "无法移除附件，请重试。");
+  } finally {
+    uploadingQuestions.delete(question.id);
+    renderQuestion(question);
+  }
+}
+
 function updateDraftStatus(questionId: string): void {
   saveErrors.delete(questionId);
-  if (activeProfile) {
+  const containsSecret = hasPotentialSecret(Object.values(getAnswer(questionId)).join("\n"));
+  if (containsSecret) {
+    const timer = pendingSaves.get(questionId);
+    if (timer) clearTimeout(timer);
+    pendingSaves.delete(questionId);
+    saveStates.set(questionId, "review-required");
+  } else if (activeProfile) {
     saveStates.set(questionId, "pending");
     scheduleAnswerSave(questionId);
   } else {
@@ -439,10 +531,19 @@ function updateDraftStatus(questionId: string): void {
   const currentQuestion = questionsById.get(questionId);
   const currentPhase = currentQuestion ? phasesById.get(currentQuestion.phaseId) : undefined;
   if (asideCounter && currentPhase) asideCounter.textContent = `${phaseQuestionCount(currentPhase)}/${currentPhase.questionIds.length} 已填写`;
+  const warning = root!.querySelector<HTMLElement>("[data-credential-warning]");
+  if (warning) {
+    const found = hasPotentialSecret(Object.values(getAnswer(questionId)).join("\n"));
+    warning.classList.toggle("is-warning", found);
+    warning.textContent = found
+      ? "检测到内容可能包含密钥或密码。请删除或打码后再保存；检查仅在本机进行。"
+      : "请勿在答案或附件中填写 API Key、密码或私人信息。";
+  }
 }
 
 function scheduleAnswerSave(questionId: string): void {
   if (!activeProfile) return;
+  if (hasPotentialSecret(Object.values(getAnswer(questionId)).join("\n"))) return;
   const previousTimer = pendingSaves.get(questionId);
   if (previousTimer) clearTimeout(previousTimer);
   const revision = (answerRevisions.get(questionId) ?? 0) + 1;
@@ -455,8 +556,12 @@ function scheduleAnswerSave(questionId: string): void {
     const snapshot = { ...getAnswer(questionId) };
     saveStates.set(questionId, "saving");
     renderCurrentSaveState(questionId);
+    const previous = inFlightSaves.get(questionId);
+    const operation = (previous ? previous.catch(() => undefined) : Promise.resolve())
+      .then(() => saveAnswer(profile, questionId, snapshot));
+    inFlightSaves.set(questionId, operation);
     try {
-      await saveAnswer(profile, questionId, snapshot);
+      await operation;
       if (answerRevisions.get(questionId) === revision) saveStates.set(questionId, "saved");
       else return;
     } catch (error) {
@@ -465,19 +570,62 @@ function scheduleAnswerSave(questionId: string): void {
         saveErrors.set(questionId, error instanceof Error ? error.message : "本机保存失败，请检查启动窗口和资料目录权限。");
       }
       else return;
+    } finally {
+      if (inFlightSaves.get(questionId) === operation) inFlightSaves.delete(questionId);
     }
     renderCurrentSaveState(questionId);
   }, 650));
 }
 
+async function flushAnswerNow(questionId: string): Promise<void> {
+  if (!activeProfile) return;
+  if (hasPotentialSecret(Object.values(getAnswer(questionId)).join("\n"))) {
+    throw new Error("答案可能包含密钥或密码；请先删除或打码，附件操作暂未继续。");
+  }
+  const timer = pendingSaves.get(questionId);
+  if (timer) clearTimeout(timer);
+  pendingSaves.delete(questionId);
+  const previous = inFlightSaves.get(questionId);
+  if (previous) await previous.catch(() => undefined);
+  const profile = activeProfile;
+  const revision = answerRevisions.get(questionId) ?? 0;
+  const snapshot = { ...getAnswer(questionId) };
+  const operation = saveAnswer(profile, questionId, snapshot);
+  inFlightSaves.set(questionId, operation);
+  saveStates.set(questionId, "saving");
+  renderCurrentSaveState(questionId);
+  try {
+    await operation;
+    if (inFlightSaves.get(questionId) === operation) inFlightSaves.delete(questionId);
+    if (answerRevisions.get(questionId) === revision) saveStates.set(questionId, "saved");
+    else scheduleAnswerSave(questionId);
+    renderCurrentSaveState(questionId);
+  } catch (error) {
+    if (inFlightSaves.get(questionId) === operation) inFlightSaves.delete(questionId);
+    saveStates.set(questionId, "error");
+    saveErrors.set(questionId, error instanceof Error ? error.message : "本机保存失败，请重试。");
+    renderCurrentSaveState(questionId);
+    throw error;
+  }
+}
+
 function flushPendingAnswers(): void {
   if (!activeProfile) return;
   const profile = activeProfile;
-  for (const [questionId, timer] of pendingSaves) {
-    clearTimeout(timer);
+  const questionIds = new Set([
+    ...pendingSaves.keys(),
+    ...[...saveStates.entries()]
+      .filter(([, state]) => state === "pending" || state === "saving")
+      .map(([questionId]) => questionId),
+  ]);
+  for (const questionId of questionIds) {
+    const timer = pendingSaves.get(questionId);
+    if (timer) clearTimeout(timer);
     pendingSaves.delete(questionId);
     const snapshot = { ...getAnswer(questionId) };
-    void saveAnswer(profile, questionId, snapshot, true).then(() => {
+    const operation = saveAnswer(profile, questionId, snapshot, true);
+    inFlightSaves.set(questionId, operation);
+    void operation.then(() => {
       saveStates.set(questionId, "saved");
       saveErrors.delete(questionId);
       renderCurrentSaveState(questionId);
@@ -485,6 +633,8 @@ function flushPendingAnswers(): void {
       saveStates.set(questionId, "error");
       saveErrors.set(questionId, "离开页面前保存失败，请重新打开本机服务并检查提交目录。");
       renderCurrentSaveState(questionId);
+    }).finally(() => {
+      if (inFlightSaves.get(questionId) === operation) inFlightSaves.delete(questionId);
     });
   }
 }

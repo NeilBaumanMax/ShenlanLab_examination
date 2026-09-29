@@ -212,7 +212,7 @@
         { "label": "项目说明模板", "url": "#materials-project-template" },
         { "label": "AI 使用记录模板", "url": "#materials-ai-log-template" }
       ],
-      "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".zip", ".txt", ".md"]
+      "allowedExtensions": [".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".xlsx", ".zip", ".txt", ".md"]
     },
     {
       "id": "Q10",

@@ -241,10 +241,15 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .attachment-box > div span { color: #75879b; font-size: 9px; line-height: 1.5; }
 .upload-button { position: relative; min-height: 34px; font-size: 10px; }
 .upload-button input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.upload-button.is-disabled { opacity: .58; cursor: not-allowed; }
+.upload-button input:disabled { cursor: not-allowed; }
 .attachment-list { display: grid; width: 100%; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .attachment-list li { display: flex; justify-content: space-between; gap: 10px; padding-top: 7px; border-top: 1px solid #e5edf4; color: #526b85; font-size: 10px; overflow-wrap: anywhere; }
 .attachment-list button { border: 0; color: var(--danger); background: none; font-size: 10px; cursor: pointer; }
+.attachment-list button:disabled { color: #9aa7b5; cursor: wait; }
+.attachment-message { margin: -7px 0 0; color: #617c98; font-size: 10px; line-height: 1.6; }
 .form-footnote { margin: -7px 0 0; color: #73869a; font-size: 9px; }
+.form-footnote.is-warning { margin: -7px 0 0; color: #8c5c13; font-size: 10px; font-weight: 600; }
 .question-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; }
 .question-pager > span { color: #7c8da0; font-size: 10px; font-variant-numeric: tabular-nums; }
 .question-pager .button { min-height: 38px; font-size: 10px; }
