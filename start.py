@@ -178,6 +178,44 @@ def profile_text(name: str, student_id: str) -> str:
     )
 
 
+def list_existing_profiles(submissions_root: Path) -> list[dict[str, str]]:
+    """List safe, self-consistent student folders without creating or migrating files."""
+    root = submissions_root.resolve()
+    try:
+        children = sorted(root.iterdir(), key=lambda item: item.name.casefold())
+    except FileNotFoundError:
+        return []
+    profiles: list[dict[str, str]] = []
+    for directory in children:
+        if directory.is_symlink() or not directory.is_dir():
+            continue
+        resolved = directory.resolve()
+        if resolved.parent != root:
+            continue
+        info_file = directory / "学生信息.txt"
+        if info_file.is_symlink() or not info_file.is_file() or info_file.resolve().parent != resolved:
+            continue
+        try:
+            fields: dict[str, str] = {}
+            for line in info_file.read_text(encoding="utf-8").splitlines():
+                key, separator, value = line.partition("：")
+                if separator and key in {"姓名", "学号"}:
+                    fields[key] = value
+            name = validate_component(fields.get("姓名"), "姓名")
+            student_id = validate_component(fields.get("学号"), "学号")
+        except (OSError, UnicodeError, RequestProblem):
+            continue
+        directory_name = f"{name}_{student_id}"
+        if directory.name != directory_name:
+            continue
+        profiles.append({
+            "name": name,
+            "studentId": student_id,
+            "directoryName": directory_name,
+        })
+    return profiles
+
+
 def read_existing_answers(student_dir: Path) -> dict[str, dict[str, str]]:
     answers: dict[str, dict[str, str]] = {}
     for question_id, directory in QUESTION_DIRECTORIES.items():
@@ -494,6 +532,14 @@ class LocalRequestHandler(SimpleHTTPRequestHandler):
         parsed = urlsplit(self.path)
         if parsed.path == "/api/health":
             self.send_json(200, {"ok": True, "storage": "local"})
+            return
+        if parsed.path == "/api/profiles":
+            try:
+                with STORAGE_LOCK:
+                    profiles = list_existing_profiles(self.submissions_root)
+                self.send_json(200, {"profiles": profiles})
+            except OSError:
+                self.send_json(500, {"error": "无法读取本机提交目录，请检查文件权限后重试。"})
             return
         if parsed.path == "/api/submission/files":
             query = parse_qs(parsed.query)

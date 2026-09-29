@@ -394,6 +394,58 @@ class LocalApiTest(unittest.TestCase):
             server.server_close()
             thread.join(timeout=2)
 
+    def test_existing_profiles_endpoint_lists_profiles_from_submission_folders(self) -> None:
+        profile = {"name": "目录扫描接口测试", "studentId": "SCAN-API-01"}
+        status, _ = self.post_json("/api/profile", profile)
+        self.assertEqual(status, 200)
+
+        status, response = self.get_json("/api/profiles")
+        self.assertEqual(status, 200)
+        self.assertIn(
+            {
+                "name": profile["name"],
+                "studentId": profile["studentId"],
+                "directoryName": f"{profile['name']}_{profile['studentId']}",
+            },
+            response["profiles"],
+        )
+
+    def test_profile_directory_scan_is_read_only_and_rejects_invalid_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "提交资料"
+            self.assertEqual(start.list_existing_profiles(root), [])
+            self.assertFalse(root.exists())
+
+            root.mkdir()
+            valid = root / "林_同学_2026_001"
+            valid.mkdir()
+            info = valid / "学生信息.txt"
+            info.write_text(start.profile_text("林_同学", "2026_001"), encoding="utf-8")
+            original_info = info.read_bytes()
+
+            mismatched = root / "错误名称_42"
+            mismatched.mkdir()
+            (mismatched / "学生信息.txt").write_text(
+                start.profile_text("其他人", "42"), encoding="utf-8"
+            )
+            broken = root / "乱码_43"
+            broken.mkdir()
+            (broken / "学生信息.txt").write_bytes(b"\xff\xfe")
+            missing_info = root / "缺少信息_44"
+            missing_info.mkdir()
+            try:
+                (root / "外部链接_45").symlink_to(valid, target_is_directory=True)
+            except OSError:
+                pass
+
+            found = start.list_existing_profiles(root)
+            self.assertEqual(
+                found,
+                [{"name": "林_同学", "studentId": "2026_001", "directoryName": valid.name}],
+            )
+            self.assertEqual(info.read_bytes(), original_info)
+            self.assertFalse((valid / "Q01_AI核心概念").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
