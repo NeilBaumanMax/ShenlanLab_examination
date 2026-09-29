@@ -16,10 +16,10 @@ import type { Phase, Question, QuestionData } from "./types";
 
 /*
 THESIS: Every answer belongs to a visible question folder and is saved only when the student submits it.
-OWN-WORLD: The existing deep-blue and paper-white workbench, now organized around a compact exam card and a real local file tree.
+OWN-WORLD: Deep-blue Liquid Glass for fixed chrome and supporting panels; opaque paper-white surfaces keep questions, answers, and saved-file details crisp.
 STORY: Identify yourself, choose any question, work freely, then submit or revise its files at any time.
 FIRST VIEWPORT: Identity form first; after entry, question work at left and the ten-question card plus submission tree at right.
-FORM: Existing blue Operate system; keep task controls familiar and remove duplicate route chrome and explanatory copy.
+FORM: Apple-inspired translucent layers, softly rounded controls, and immediate restrained press feedback; retain the established blue Operate hierarchy and all task behavior.
 */
 
 const root = document.querySelector<HTMLDivElement>("#app");
