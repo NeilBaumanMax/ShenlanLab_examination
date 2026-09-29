@@ -758,46 +758,49 @@ body { background: #061423; }
 
 /* Desktop navigation rail: persistent project context without consuming the reading header. */
 @media (min-width: 761px) {
-  .app-shell { padding-left: 244px; }
+  .app-shell { padding-left: 98px; }
   .topbar {
     position: fixed;
     top: 0;
     right: auto;
     bottom: 0;
     left: 0;
-    width: 244px;
+    width: 98px;
     height: 100dvh;
     align-items: stretch;
     flex-direction: column;
-    padding: 24px 18px 20px;
+    padding: 16px 10px 12px;
     border-right: 1px solid rgba(171, 224, 255, .18);
     border-bottom: 0;
   }
-  .topbar__left { align-items: stretch; flex-direction: column; gap: 28px; }
-  .brand { align-items: flex-start; }
+  .topbar__left { align-items: stretch; flex-direction: column; gap: 24px; }
+  .brand { align-items: flex-start; flex-direction: column; gap: 10px; }
   .brand__text { min-width: 0; padding-top: 2px; }
-  .brand__text strong { max-width: 158px; line-height: 1.45; }
+  .brand__text strong { max-width: 78px; font-size: 10px; line-height: 1.45; }
+  .brand__text small { display: none; }
   .project-links { align-items: stretch; flex-direction: column; gap: 8px; }
-  .project-links a { min-height: 40px; justify-content: space-between; padding: 0 12px; font-size: 12px; }
+  .project-links a { min-height: 38px; justify-content: space-between; gap: 3px; padding: 0 6px; font-size: 9px; }
   .topbar__identity {
-    display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
-    align-items: center;
-    gap: 9px 10px;
-    padding: 14px 12px;
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+    padding: 10px 7px;
     border: 1px solid rgba(145, 211, 250, .16);
     border-radius: 14px;
     background: rgba(7, 35, 57, .42);
   }
-  .topbar__identity .text-button { grid-column: 1 / -1; min-height: 32px; margin: 2px 0 0; border-top: 1px solid rgba(145, 211, 250, .13); text-align: left; }
+  .topbar__identity .identity-avatar { width: 28px; height: 28px; }
+  .topbar__identity > span:nth-child(2) { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .topbar__identity .text-button { width: 100%; min-height: 32px; margin: 2px 0 0; border-top: 1px solid rgba(145, 211, 250, .13); text-align: left; }
   .workbench { padding-top: 24px; }
   .workspace-side { top: 18px; height: calc(100dvh - 36px); }
 }
 
 @media (min-width: 761px) and (max-width: 1180px) {
-  .app-shell { padding-left: 224px; }
-  .topbar { width: 224px; padding-right: 16px; padding-left: 16px; }
-  .brand__text strong { max-width: 140px; font-size: 13px; }
+  .app-shell { padding-left: 94px; }
+  .topbar { width: 94px; padding-right: 8px; padding-left: 8px; }
+  .brand__text strong { max-width: 78px; font-size: 10px; }
   .workbench { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .workspace-side { position: static; height: auto; max-height: none; grid-row: 1; grid-template-rows: auto; }
   .workspace { grid-row: 2; }
