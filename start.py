@@ -19,7 +19,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import RLock
 from typing import Any
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 
 ROOT = Path(__file__).resolve().parent
@@ -87,12 +87,56 @@ def resolve_student_directory(
     safe_name = validate_component(name, "姓名")
     safe_student_id = validate_component(student_id, "学号")
     root = submissions_root.resolve()
-    directory_name = f"{safe_student_id}_{safe_name}"
+    directory_name = f"{safe_name}_{safe_student_id}"
     candidate = root / directory_name
     student_dir = candidate.resolve()
     if student_dir != candidate or student_dir.parent != root:
         raise RequestProblem(400, "学生资料目录无效，请检查姓名和学号。")
     return safe_name, student_dir, directory_name, safe_student_id
+
+
+def ensure_student_directory(
+    name: str, student_id: str, student_dir: Path, submissions_root: Path
+) -> None:
+    legacy = submissions_root.resolve() / f"{student_id}_{name}"
+    if legacy == student_dir:
+        student_dir.mkdir(parents=True, exist_ok=True)
+        return
+    if legacy.exists() and student_dir.exists():
+        raise RequestProblem(
+            409,
+            "检测到旧命名和新命名的答题目录同时存在。为避免覆盖资料，请先备份并手动合并后再继续。",
+        )
+    if legacy.exists():
+        try:
+            legacy.rename(student_dir)
+        except OSError as error:
+            raise RequestProblem(500, "无法迁移旧答题目录，请检查文件权限和磁盘空间。") from error
+        for question_id in QUESTION_DIRECTORIES:
+            question_dir = question_directory(student_dir, question_id)
+            old_attachments = question_dir / "附件"
+            if not old_attachments.is_dir():
+                continue
+            for old_file in sorted(old_attachments.iterdir(), key=lambda item: item.name.casefold()):
+                if old_file.is_file() and old_file.resolve().parent == old_attachments.resolve():
+                    filename, should_write = unique_attachment_name(
+                        question_dir, validate_attachment_name(old_file.name), old_file.read_bytes()
+                    )
+                    destination = question_dir / filename
+                    if should_write:
+                        old_file.rename(destination)
+                    else:
+                        old_file.unlink()
+            old_attachments.rmdir()
+        for question_id in QUESTION_DIRECTORIES:
+            fields = read_existing_answers(student_dir).get(question_id)
+            if fields is not None:
+                write_answer_files(student_dir, question_id, fields)
+        old_profile = student_dir / "学生信息.md"
+        if old_profile.is_file():
+            old_profile.unlink()
+    else:
+        student_dir.mkdir(parents=True, exist_ok=True)
 
 
 def atomic_write_text(path: Path, content: str) -> None:
@@ -127,12 +171,10 @@ def atomic_write_bytes(path: Path, content: bytes) -> None:
             os.unlink(temp_name)
 
 
-def profile_markdown(name: str, student_id: str) -> str:
+def profile_text(name: str, student_id: str) -> str:
     return (
-        "# 学生信息\n\n"
-        f"- 姓名：{name}\n"
-        f"- 学号：{student_id}\n"
-        "- 保存位置：本机提交资料目录\n"
+        f"姓名：{name}\n"
+        f"学号：{student_id}\n"
     )
 
 
@@ -145,14 +187,22 @@ def read_existing_answers(student_dir: Path) -> dict[str, dict[str, str]]:
         try:
             payload = json.loads(answer_path.read_text(encoding="utf-8"))
         except (FileNotFoundError, json.JSONDecodeError, OSError):
-            continue
-        if not isinstance(payload, dict):
-            continue
-        fields = payload.get("fields")
-        if payload.get("questionId") == question_id and isinstance(fields, dict):
+            payload = {}
+        if isinstance(payload, dict) and payload.get("questionId") == question_id and isinstance(payload.get("fields"), dict):
+            fields = payload["fields"]
             answers[question_id] = {
                 key: value for key, value in fields.items() if isinstance(value, str)
             }
+            continue
+        text_path = student_dir / directory / "回答.txt"
+        if text_path.is_file():
+            answers[question_id] = {"answer": text_path.read_text(encoding="utf-8")}
+        question = QUESTIONS[question_id]
+        for field in question.get("fields", []):
+            filename = field_filename(field["id"], field["label"])
+            field_path = student_dir / directory / filename
+            if field_path.is_file():
+                answers.setdefault(question_id, {})[field["id"]] = field_path.read_text(encoding="utf-8")
     return answers
 
 
@@ -218,13 +268,14 @@ def question_directory(student_dir: Path, question_id: str, create: bool = False
 
 
 def attachment_directory(student_dir: Path, question_id: str, create: bool = False) -> Path:
-    question_dir = question_directory(student_dir, question_id, create=create)
-    attachments = question_dir / "附件"
-    if create:
-        attachments.mkdir(parents=True, exist_ok=True)
-    if attachments.resolve().parent != question_dir.resolve():
-        raise RequestProblem(400, "附件目录无效，已阻止访问。")
-    return attachments
+    return question_directory(student_dir, question_id, create=create)
+
+
+def field_filename(field_id: str, label: str) -> str:
+    if field_id == "repository":
+        return "GitHub仓库链接.txt"
+    safe_label = "".join(char for char in label if char.isalnum() or char in " _-()·")
+    return f"{safe_label or field_id}.txt"
 
 
 def list_attachments(student_dir: Path, question_id: str) -> list[dict[str, Any]]:
@@ -235,6 +286,24 @@ def list_attachments(student_dir: Path, question_id: str) -> list[dict[str, Any]
     if not directory.is_dir():
         return []
     items: list[dict[str, Any]] = []
+    generated = {"回答.txt", "回答.md", "回答.json"}
+    generated.update(
+        field_filename(field["id"], field["label"])
+        for field in QUESTIONS[question_id].get("fields", [])
+    )
+    for path in sorted(directory.iterdir(), key=lambda item: item.name.casefold()):
+        try:
+            if path.name not in generated and path.is_file() and path.resolve().parent == directory.resolve():
+                items.append({"name": path.name, "size": path.stat().st_size})
+        except OSError:
+            continue
+    return items
+
+
+def list_direct_files(directory: Path) -> list[dict[str, Any]]:
+    if not directory.is_dir():
+        return []
+    items: list[dict[str, Any]] = []
     for path in sorted(directory.iterdir(), key=lambda item: item.name.casefold()):
         try:
             if path.is_file() and path.resolve().parent == directory.resolve():
@@ -242,6 +311,25 @@ def list_attachments(student_dir: Path, question_id: str) -> list[dict[str, Any]
         except OSError:
             continue
     return items
+
+
+def build_file_tree(student_dir: Path, directory_name: str) -> dict[str, Any]:
+    root = student_dir.resolve()
+    questions = []
+    for question_id, directory_name_for_question in QUESTION_DIRECTORIES.items():
+        directory = question_directory(root, question_id)
+        questions.append(
+            {
+                "id": question_id,
+                "directoryName": directory_name_for_question,
+                "files": list_direct_files(directory),
+            }
+        )
+    return {
+        "directoryName": directory_name,
+        "rootFiles": list_direct_files(root),
+        "questions": questions,
+    }
 
 
 def read_answer_fields(student_dir: Path, question_id: str) -> dict[str, str]:
@@ -261,20 +349,24 @@ def write_answer_files(student_dir: Path, question_id: str, fields: dict[str, st
     question_dir = question_directory(student_dir, question_id, create=True)
     if question_dir.resolve().parent != student_dir.resolve():
         raise RequestProblem(400, "题目资料目录无效，已阻止写入。")
-    question = QUESTIONS[question_id]
     saved_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    answer_json = {
-        "questionId": question_id,
-        "title": question["title"],
-        "fields": fields,
-        "updatedAt": saved_at,
-    }
-    attachments = [item["name"] for item in list_attachments(student_dir, question_id)]
-    atomic_write_text(
-        question_dir / "回答.json",
-        json.dumps(answer_json, ensure_ascii=False, indent=2) + "\n",
-    )
-    atomic_write_text(question_dir / "回答.md", answer_markdown(question, fields, attachments))
+    question = QUESTIONS[question_id]
+    answer_path = question_dir / "回答.txt"
+    if fields.get("answer", "").strip():
+        atomic_write_text(answer_path, fields["answer"])
+    elif answer_path.exists():
+        answer_path.unlink()
+    for field in question.get("fields", []):
+        path = question_dir / field_filename(field["id"], field["label"])
+        value = fields.get(field["id"], "").strip()
+        if value:
+            atomic_write_text(path, value)
+        elif path.exists():
+            path.unlink()
+    for obsolete_name in ("回答.md", "回答.json"):
+        obsolete = question_dir / obsolete_name
+        if obsolete.is_file():
+            obsolete.unlink()
     return saved_at
 
 
@@ -403,6 +495,15 @@ class LocalRequestHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/health":
             self.send_json(200, {"ok": True, "storage": "local"})
             return
+        if parsed.path == "/api/submission/files":
+            query = parse_qs(parsed.query)
+            try:
+                self.handle_file_tree(
+                    {"name": (query.get("name") or [""])[0], "studentId": (query.get("studentId") or [""])[0]}
+                )
+            except RequestProblem as problem:
+                self.send_json(problem.status, {"error": problem.message})
+            return
         if parsed.path.startswith("/api/"):
             self.send_json(404, {"error": "没有找到该本地功能。"})
             return
@@ -431,10 +532,10 @@ class LocalRequestHandler(SimpleHTTPRequestHandler):
     def do_DELETE(self) -> None:
         parsed = urlsplit(self.path)
         try:
-            if not parsed.path.startswith("/api/attachments/"):
+            if not (parsed.path.startswith("/api/attachments/") or parsed.path.startswith("/api/files/")):
                 self.send_json(404, {"error": "没有找到该本地功能。"})
                 return
-            self.handle_attachment_delete(parsed.path, self.read_json())
+            self.handle_file_delete(parsed.path, self.read_json())
         except RequestProblem as problem:
             self.send_json(problem.status, {"error": problem.message})
         except OSError:
@@ -448,16 +549,18 @@ class LocalRequestHandler(SimpleHTTPRequestHandler):
             payload.get("name"), payload.get("studentId"), self.submissions_root
         )
         with STORAGE_LOCK:
-            student_dir.mkdir(parents=True, exist_ok=True)
-            atomic_write_text(student_dir / "学生信息.md", profile_markdown(name, student_id))
+            ensure_student_directory(name, student_id, student_dir, self.submissions_root)
+            atomic_write_text(student_dir / "学生信息.txt", profile_text(name, student_id))
             answers = read_existing_answers(student_dir)
             attachments = read_existing_attachments(student_dir)
+            file_tree = build_file_tree(student_dir, directory_name)
         self.send_json(
             200,
             {
                 "profile": {"name": name, "studentId": student_id, "directoryName": directory_name},
                 "answers": answers,
                 "attachments": attachments,
+                "fileTree": file_tree,
             },
         )
 
@@ -470,8 +573,9 @@ class LocalRequestHandler(SimpleHTTPRequestHandler):
         )
         fields = validate_answer_fields(question_id, payload.get("fields"))
         with STORAGE_LOCK:
+            ensure_student_directory(name, student_id, student_dir, self.submissions_root)
             saved_at = write_answer_files(student_dir, question_id, fields)
-            atomic_write_text(student_dir / "学生信息.md", profile_markdown(name, student_id))
+            atomic_write_text(student_dir / "学生信息.txt", profile_text(name, student_id))
         self.send_json(200, {"ok": True, "questionId": question_id, "savedAt": saved_at})
 
     def handle_upload(self, path: str) -> None:
@@ -490,16 +594,22 @@ class LocalRequestHandler(SimpleHTTPRequestHandler):
         if len(content) > MAX_UPLOAD_BYTES:
             raise RequestProblem(413, "单个附件不能超过 50 MB。")
         with STORAGE_LOCK:
+            ensure_student_directory(name, student_id, student_dir, self.submissions_root)
             directory = attachment_directory(student_dir, question_id, create=True)
+            generated = {"回答.txt", "回答.md", "回答.json", "学生信息.txt"}
+            generated.update(
+                field_filename(field["id"], field["label"])
+                for field in QUESTIONS[question_id].get("fields", [])
+            )
+            if filename in generated:
+                raise RequestProblem(400, "附件文件名与系统答案文件重名，请先重命名附件。")
             stored_name, should_write = unique_attachment_name(directory, filename, content)
             if should_write:
                 atomic_write_bytes(directory / stored_name, content)
-            write_answer_files(student_dir, question_id, read_answer_fields(student_dir, question_id))
-            atomic_write_text(student_dir / "学生信息.md", profile_markdown(name, student_id))
             info = next(item for item in list_attachments(student_dir, question_id) if item["name"] == stored_name)
         self.send_json(200, {"ok": True, "questionId": question_id, "attachment": info})
 
-    def handle_attachment_delete(self, path: str, payload: dict[str, Any]) -> None:
+    def handle_file_delete(self, path: str, payload: dict[str, Any]) -> None:
         question_id = unquote(path.rsplit("/", 1)[-1])
         if question_id not in QUESTION_DIRECTORIES or question_id not in QUESTIONS:
             raise RequestProblem(404, "没有找到这道题。")
@@ -508,21 +618,32 @@ class LocalRequestHandler(SimpleHTTPRequestHandler):
         )
         filename = validate_attachment_name(payload.get("filename"))
         with STORAGE_LOCK:
-            directory = attachment_directory(student_dir, question_id)
+            ensure_student_directory(name, student_id, student_dir, self.submissions_root)
+            directory = question_directory(student_dir, question_id)
             target = directory / filename
             if target.resolve().parent != directory.resolve() or not target.is_file():
-                raise RequestProblem(404, "没有找到要移除的附件。")
+                raise RequestProblem(404, "没有找到要删除的文件。")
             target.unlink()
-            write_answer_files(student_dir, question_id, read_answer_fields(student_dir, question_id))
-            atomic_write_text(student_dir / "学生信息.md", profile_markdown(name, student_id))
         self.send_json(200, {"ok": True, "questionId": question_id, "filename": filename})
 
-    def handle_open_submission_directory(self, payload: dict[str, Any]) -> None:
-        _, student_dir, directory_name, _ = resolve_student_directory(
+    def handle_file_tree(self, payload: dict[str, Any]) -> None:
+        name, student_dir, directory_name, _ = resolve_student_directory(
             payload.get("name"), payload.get("studentId"), self.submissions_root
         )
+        del name
         if not student_dir.is_dir():
+            raise RequestProblem(404, "还没有本机答题目录，请先填写身份信息。")
+        self.send_json(200, {"fileTree": build_file_tree(student_dir, directory_name)})
+
+    def handle_open_submission_directory(self, payload: dict[str, Any]) -> None:
+        name, student_dir, directory_name, student_id = resolve_student_directory(
+            payload.get("name"), payload.get("studentId"), self.submissions_root
+        )
+        legacy_dir = self.submissions_root.resolve() / f"{student_id}_{name}"
+        if not student_dir.is_dir() and not legacy_dir.is_dir():
             raise RequestProblem(404, "还没有本机答题目录，请先保存学生信息。")
+        with STORAGE_LOCK:
+            ensure_student_directory(name, student_id, student_dir, self.submissions_root)
         try:
             open_directory(student_dir)
         except OSError as error:

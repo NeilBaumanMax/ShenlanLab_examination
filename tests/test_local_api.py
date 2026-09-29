@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 import start
@@ -42,6 +42,14 @@ class LocalApiTest(unittest.TestCase):
 
     def post_json(self, path: str, payload: dict) -> tuple[int, dict]:
         return self.json_request(path, payload, "POST")
+
+    def get_json(self, path: str) -> tuple[int, dict]:
+        try:
+            with urlopen(self.base_url + path, timeout=3) as response:
+                return response.status, json.loads(response.read().decode("utf-8"))
+        except HTTPError as error:
+            with error:
+                return error.code, json.loads(error.read().decode("utf-8"))
 
     def json_request(self, path: str, payload: dict, method: str) -> tuple[int, dict]:
         request = Request(
@@ -83,14 +91,14 @@ class LocalApiTest(unittest.TestCase):
             with error:
                 return error.code, json.loads(error.read().decode("utf-8"))
 
-    def test_profile_answer_markdown_json_restore_and_path_rejection(self) -> None:
+    def test_profile_txt_files_restore_and_path_rejection(self) -> None:
         profile_payload = {"name": "林同学", "studentId": "2026 001"}
         status, profile_response = self.post_json("/api/profile", profile_payload)
         self.assertEqual(status, 200)
-        directory_name = "2026 001_林同学"
+        directory_name = "林同学_2026 001"
         student_dir = self.submissions_root / directory_name
         self.assertEqual(profile_response["profile"]["directoryName"], directory_name)
-        self.assertTrue((student_dir / "学生信息.md").is_file())
+        self.assertTrue((student_dir / "学生信息.txt").is_file())
         self.assertFalse((student_dir / QUESTION_DIRECTORIES["Q01"]).exists())
 
         answer = "第一行：课程助理。\n第二行：使用本地资料。\n链接：https://example.org/project"
@@ -104,11 +112,9 @@ class LocalApiTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(saved["questionId"], "Q01")
         question_dir = student_dir / QUESTION_DIRECTORIES["Q01"]
-        markdown = (question_dir / "回答.md").read_text(encoding="utf-8")
-        saved_json = json.loads((question_dir / "回答.json").read_text(encoding="utf-8"))
-        self.assertIn(answer, markdown)
-        self.assertEqual(saved_json["fields"]["answer"], answer)
-        self.assertNotIn("unrecognized", saved_json["fields"])
+        self.assertEqual((question_dir / "回答.txt").read_text(encoding="utf-8"), answer)
+        self.assertFalse((question_dir / "回答.md").exists())
+        self.assertFalse((question_dir / "回答.json").exists())
 
         status, restored = self.post_json("/api/profile", profile_payload)
         self.assertEqual(status, 200)
@@ -118,9 +124,8 @@ class LocalApiTest(unittest.TestCase):
         )
         self.assertEqual(status, 200)
         self.assertEqual(uploaded["attachment"]["name"], "概念图.png")
-        attachment_path = student_dir / QUESTION_DIRECTORIES["Q01"] / "附件" / "概念图.png"
+        attachment_path = student_dir / QUESTION_DIRECTORIES["Q01"] / "概念图.png"
         self.assertEqual(attachment_path.read_bytes(), b"\x89PNG\r\noriginal-image-bytes")
-        self.assertIn("概念图.png", (student_dir / QUESTION_DIRECTORIES["Q01"] / "回答.md").read_text(encoding="utf-8"))
 
         allowed_examples = [
             ("/api/attachments/Q01", "concept-notes.pdf", b"%PDF-1.7 fictional test bytes"),
@@ -139,7 +144,6 @@ class LocalApiTest(unittest.TestCase):
                 saved_path = (
                     student_dir
                     / QUESTION_DIRECTORIES[endpoint.rsplit("/", 1)[-1]]
-                    / "附件"
                     / filename
                 )
                 self.assertEqual(saved_path.read_bytes(), content)
@@ -156,7 +160,7 @@ class LocalApiTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(project_zip["attachment"]["name"], "source.zip")
         self.assertEqual(
-            (student_dir / QUESTION_DIRECTORIES["Q09"] / "附件" / "source.zip").read_bytes(),
+            (student_dir / QUESTION_DIRECTORIES["Q09"] / "source.zip").read_bytes(),
             b"source archive bytes",
         )
         project_answer = {
@@ -166,11 +170,38 @@ class LocalApiTest(unittest.TestCase):
         status, project_saved = self.post_json("/api/answers/Q09", project_answer)
         self.assertEqual(status, 200)
         self.assertEqual(project_saved["questionId"], "Q09")
-        project_markdown = (
-            student_dir / QUESTION_DIRECTORIES["Q09"] / "回答.md"
-        ).read_text(encoding="utf-8")
-        self.assertIn("https://github.com/example/student-project", project_markdown)
-        self.assertIn("source.zip", project_markdown)
+        project_dir = student_dir / QUESTION_DIRECTORIES["Q09"]
+        self.assertEqual(
+            (project_dir / "GitHub仓库链接.txt").read_text(encoding="utf-8"),
+            "https://github.com/example/student-project",
+        )
+        self.assertEqual((project_dir / "source.zip").read_bytes(), b"source archive bytes")
+
+        replacement = "更新后的答案"
+        status, _ = self.post_json(
+            "/api/answers/Q01", {**profile_payload, "fields": {"answer": replacement}}
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual((question_dir / "回答.txt").read_text(encoding="utf-8"), replacement)
+
+        status, tree_response = self.get_json(
+            "/api/submission/files?" + urlencode(profile_payload)
+        )
+        self.assertEqual(status, 200)
+        tree = tree_response["fileTree"]
+        self.assertEqual(tree["directoryName"], directory_name)
+        self.assertIn("学生信息.txt", [item["name"] for item in tree["rootFiles"]])
+        q01 = next(item for item in tree["questions"] if item["id"] == "Q01")
+        self.assertCountEqual(
+            [item["name"] for item in q01["files"]],
+            ["回答.txt", "概念图.png", "concept-notes.pdf"],
+        )
+
+        status, removed_answer = self.json_request(
+            "/api/files/Q01", {**profile_payload, "filename": "回答.txt"}, "DELETE"
+        )
+        self.assertEqual(status, 200)
+        self.assertFalse((question_dir / "回答.txt").exists())
 
         old_limit = start.MAX_UPLOAD_BYTES
         start.MAX_UPLOAD_BYTES = 8
@@ -217,7 +248,7 @@ class LocalApiTest(unittest.TestCase):
         profile_payload = {"name": "林同学", "studentId": "OPEN-001"}
         status, _ = self.post_json("/api/profile", profile_payload)
         self.assertEqual(status, 200)
-        expected_dir = self.submissions_root / "OPEN-001_林同学"
+        expected_dir = self.submissions_root / "林同学_OPEN-001"
         with patch("start.open_directory") as open_mock:
             status, response = self.post_json("/api/submission/open", profile_payload)
         self.assertEqual(status, 200)
@@ -237,6 +268,47 @@ class LocalApiTest(unittest.TestCase):
             status, response = self.post_json("/api/submission/open", profile_payload)
         self.assertEqual(status, 500)
         self.assertIn("系统文件管理器", response["error"])
+
+    def test_legacy_submission_migrates_without_losing_answers_or_attachments(self) -> None:
+        profile = {"name": "兼容同学", "studentId": "MIGRATE-01"}
+        legacy_dir = self.submissions_root / "MIGRATE-01_兼容同学"
+        question_dir = legacy_dir / QUESTION_DIRECTORIES["Q09"]
+        legacy_attachments = question_dir / "附件"
+        legacy_attachments.mkdir(parents=True)
+        (legacy_dir / "学生信息.md").write_text("旧资料", encoding="utf-8")
+        (question_dir / "回答.json").write_text(
+            json.dumps({"questionId": "Q09", "fields": {"repository": "https://github.com/a/b", "answer": "旧答案"}}),
+            encoding="utf-8",
+        )
+        (legacy_attachments / "old.zip").write_bytes(b"legacy archive")
+
+        status, restored = self.post_json("/api/profile", profile)
+        self.assertEqual(status, 200)
+        self.assertEqual(restored["answers"]["Q09"]["answer"], "旧答案")
+        new_dir = self.submissions_root / "兼容同学_MIGRATE-01"
+        new_question_dir = new_dir / QUESTION_DIRECTORIES["Q09"]
+        self.assertFalse(legacy_dir.exists())
+        self.assertEqual((new_question_dir / "回答.txt").read_text(encoding="utf-8"), "旧答案")
+        self.assertEqual(
+            (new_question_dir / "GitHub仓库链接.txt").read_text(encoding="utf-8"),
+            "https://github.com/a/b",
+        )
+        self.assertEqual((new_question_dir / "old.zip").read_bytes(), b"legacy archive")
+        self.assertFalse((new_question_dir / "附件").exists())
+
+    def test_legacy_and_new_directory_conflict_is_not_overwritten(self) -> None:
+        profile = {"name": "冲突同学", "studentId": "CONFLICT-01"}
+        legacy_dir = self.submissions_root / "CONFLICT-01_冲突同学"
+        new_dir = self.submissions_root / "冲突同学_CONFLICT-01"
+        legacy_dir.mkdir(parents=True)
+        new_dir.mkdir(parents=True)
+        (legacy_dir / "keep.txt").write_text("legacy", encoding="utf-8")
+        (new_dir / "keep.txt").write_text("new", encoding="utf-8")
+        status, response = self.post_json("/api/profile", profile)
+        self.assertEqual(status, 409)
+        self.assertIn("同时存在", response["error"])
+        self.assertEqual((legacy_dir / "keep.txt").read_text(encoding="utf-8"), "legacy")
+        self.assertEqual((new_dir / "keep.txt").read_text(encoding="utf-8"), "new")
 
     def test_main_starts_loopback_server_and_opens_browser(self) -> None:
         fake_server = MagicMock()
