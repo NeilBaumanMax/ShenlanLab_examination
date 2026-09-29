@@ -33,10 +33,13 @@ const committedAnswers = new Map<string, StoredAnswer>();
 const pendingFiles = new Map<string, File[]>();
 const saveStates = new Map<string, SaveState>();
 const attachmentMessages = new Map<string, string>();
+const PROFILE_STORAGE_KEY = "shenlanlab.student-profile.v1";
 let activeQuestionId: string | null = null;
 let activeProfile: StudentProfile | null = null;
 let fileTree: SubmissionFileTree | null = null;
 let profileSubmitting = false;
+let profileRestoring = false;
+let profileRestoreError = "";
 let answerSubmitting: string | null = null;
 let directoryMessage = "";
 let narrowSideTab = "exam";
@@ -126,6 +129,34 @@ function hydrateProfile(response: Awaited<ReturnType<typeof createProfile>>): vo
   }
 }
 
+function readRememberedProfile(): Pick<StudentProfile, "name" | "studentId"> | null {
+  try {
+    const raw = window.localStorage.getItem(PROFILE_STORAGE_KEY);
+    if (!raw) return null;
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== "object" || value === null) throw new Error("invalid profile");
+    const { name, studentId } = value as Record<string, unknown>;
+    if (typeof name !== "string" || !name.trim() || typeof studentId !== "string" || !studentId.trim()
+      || name.length > 48 || studentId.length > 48) throw new Error("invalid profile");
+    return { name, studentId };
+  } catch {
+    try { window.localStorage.removeItem(PROFILE_STORAGE_KEY); } catch { /* storage may be disabled */ }
+    return null;
+  }
+}
+
+function rememberProfile(profile: StudentProfile): boolean {
+  try {
+    window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify({
+      name: profile.name,
+      studentId: profile.studentId,
+    }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function renderIdentityGate(): void {
   root!.innerHTML = `
     <main class="identity-gate">
@@ -138,13 +169,49 @@ function renderIdentityGate(): void {
         <form class="identity-form" data-profile-form>
           <label>姓名<input name="name" autocomplete="name" maxlength="48" required placeholder="请输入姓名"></label>
           <label>学号<input name="studentId" autocomplete="off" maxlength="48" required placeholder="请输入学号"></label>
-          <p class="identity-path" data-profile-message>提交文件保存在本机：提交资料/姓名_学号</p>
+          <p class="identity-path" data-profile-message role="status" aria-live="polite">${escapeHtml(profileRestoreError || "提交文件保存在本机：提交资料/姓名_学号")}</p>
           <button class="button button--primary" type="submit" ${profileSubmitting ? "disabled" : ""}>
             ${profileSubmitting ? "正在读取进度…" : "进入答题"}
           </button>
         </form>
       </section>
     </main>`;
+}
+
+function renderProfileRestoring(): void {
+  root!.innerHTML = `
+    <main class="identity-gate">
+      <section class="identity-panel" aria-labelledby="identity-title" aria-live="polite">
+        <a class="brand" href="#" aria-label="深蓝科技部答题 App">
+          <span class="brand__seal" aria-hidden="true">深</span>
+          <span class="brand__text"><strong>深蓝科技部</strong><small>AI AGENT QUEST</small></span>
+        </a>
+        <h1 id="identity-title">${profileRestoreError ? "无法读取本机资料" : "正在恢复答题进度…"}</h1>
+        <p class="identity-path">${escapeHtml(profileRestoreError || "正在读取此设备记住的身份和答题文件。")}</p>
+        ${profileRestoreError ? '<button class="button button--primary" type="button" data-retry-profile>重试</button>' : '<span class="identity-loading" role="status">请稍候</span>'}
+      </section>
+    </main>`;
+}
+
+function restoreRememberedProfile(): void {
+  const remembered = readRememberedProfile();
+  if (!remembered) {
+    renderIdentityGate();
+    return;
+  }
+  profileRestoring = true;
+  profileRestoreError = "";
+  renderProfileRestoring();
+  void createProfile(remembered.name, remembered.studentId).then((response) => {
+    hydrateProfile(response);
+    rememberProfile(response.profile);
+    profileRestoring = false;
+    renderHome();
+  }).catch((error: unknown) => {
+    profileRestoring = false;
+    profileRestoreError = error instanceof Error ? error.message : "无法读取本机资料，请重试。";
+    renderProfileRestoring();
+  });
 }
 
 function renderExamCard(): string {
@@ -416,9 +483,13 @@ root.addEventListener("submit", (event) => {
     const name = String(formData.get("name") ?? "");
     const studentId = String(formData.get("studentId") ?? "");
     profileSubmitting = true;
+    profileRestoreError = "";
     renderIdentityGate();
     void createProfile(name, studentId).then((response) => {
       hydrateProfile(response);
+      directoryMessage = rememberProfile(response.profile)
+        ? "身份已记住，下次打开会自动恢复。"
+        : "浏览器未允许记住身份；关闭页面后可能需要重新登记。";
       profileSubmitting = false;
       renderHome();
     }).catch((error: unknown) => {
@@ -471,6 +542,10 @@ root.addEventListener("change", (event) => {
 root.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
+  if (target.closest("[data-retry-profile]") && !profileRestoring) {
+    restoreRememberedProfile();
+    return;
+  }
   const tab = target.closest<HTMLButtonElement>("[data-side-tab]");
   if (tab) { narrowSideTab = tab.dataset.sideTab ?? "exam"; if (activeQuestionId) renderQuestion(questionsById.get(activeQuestionId)!); else renderHome(); return; }
   const deleteButton = target.closest<HTMLButtonElement>("[data-delete-file]");
@@ -517,4 +592,4 @@ window.addEventListener("beforeunload", (event) => {
   if (dirty) { event.preventDefault(); event.returnValue = ""; }
 });
 
-renderIdentityGate();
+restoreRememberedProfile();
