@@ -23,6 +23,7 @@ class LocalApiTest(unittest.TestCase):
         static_root = root / "web"
         static_root.mkdir()
         (static_root / "index.html").write_text("local app", encoding="utf-8")
+        cls.static_root = static_root
         cls.submissions_root = root / "提交资料"
         server = ThreadingHTTPServer(
             ("127.0.0.1", 0), make_handler(static_root, cls.submissions_root)
@@ -121,6 +122,28 @@ class LocalApiTest(unittest.TestCase):
         self.assertEqual(attachment_path.read_bytes(), b"\x89PNG\r\noriginal-image-bytes")
         self.assertIn("概念图.png", (student_dir / QUESTION_DIRECTORIES["Q01"] / "回答.md").read_text(encoding="utf-8"))
 
+        allowed_examples = [
+            ("/api/attachments/Q01", "concept-notes.pdf", b"%PDF-1.7 fictional test bytes"),
+            ("/api/attachments/Q03", "setup-proof.docx", b"PK fictional DOCX test bytes"),
+            (
+                "/api/attachments/Q09",
+                "模拟课表.xlsx",
+                (start.ROOT / "samples" / "模拟课表.xlsx").read_bytes(),
+            ),
+        ]
+        for endpoint, filename, content in allowed_examples:
+            with self.subTest(filename=filename):
+                status, upload = self.post_file(endpoint, profile_payload, filename, content)
+                self.assertEqual(status, 200)
+                self.assertEqual(upload["attachment"]["name"], filename)
+                saved_path = (
+                    student_dir
+                    / QUESTION_DIRECTORIES[endpoint.rsplit("/", 1)[-1]]
+                    / "附件"
+                    / filename
+                )
+                self.assertEqual(saved_path.read_bytes(), content)
+
         status, duplicate = self.post_file(
             "/api/attachments/Q01", profile_payload, "概念图.png", b"\x89PNG\r\noriginal-image-bytes"
         )
@@ -136,6 +159,17 @@ class LocalApiTest(unittest.TestCase):
             (student_dir / QUESTION_DIRECTORIES["Q09"] / "附件" / "source.zip").read_bytes(),
             b"source archive bytes",
         )
+        project_answer = {
+            **profile_payload,
+            "fields": {"repository": "https://github.com/example/student-project"},
+        }
+        status, project_saved = self.post_json("/api/answers/Q09", project_answer)
+        self.assertEqual(status, 200)
+        project_markdown = (
+            student_dir / QUESTION_DIRECTORIES["Q09"] / "回答.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("https://github.com/example/student-project", project_markdown)
+        self.assertIn("source.zip", project_markdown)
 
         old_limit = start.MAX_UPLOAD_BYTES
         start.MAX_UPLOAD_BYTES = 8
@@ -155,7 +189,10 @@ class LocalApiTest(unittest.TestCase):
 
         status, restored = self.post_json("/api/profile", profile_payload)
         self.assertEqual(status, 200)
-        self.assertEqual(restored["attachments"]["Q01"][0]["name"], "概念图.png")
+        self.assertCountEqual(
+            [item["name"] for item in restored["attachments"]["Q01"]],
+            ["概念图.png", "concept-notes.pdf"],
+        )
 
         status, removed = self.json_request(
             "/api/attachments/Q01",
@@ -248,6 +285,38 @@ class LocalApiTest(unittest.TestCase):
                     body = response.read()
                 self.assertIn(expected.encode("utf-8"), body, path)
         finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
+    def test_answers_restore_from_disk_on_fresh_server_and_students_are_isolated(self) -> None:
+        first_profile = {"name": "周同学", "studentId": "2026 A"}
+        answer = "保存后在新服务实例中恢复。"
+        status, _ = self.post_json("/api/answers/Q02", {**first_profile, "fields": {"answer": answer}})
+        self.assertEqual(status, 200)
+
+        server = ThreadingHTTPServer(
+            ("127.0.0.1", 0), make_handler(self.static_root, self.submissions_root)
+        )
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        original_url = self.base_url
+        self.base_url = f"http://127.0.0.1:{server.server_port}"
+        try:
+            status, restored = self.post_json("/api/profile", first_profile)
+            self.assertEqual(status, 200)
+            self.assertEqual(restored["answers"]["Q02"]["answer"], answer)
+
+            second_profile = {"name": "周同学", "studentId": "2026 B"}
+            status, second = self.post_json("/api/profile", second_profile)
+            self.assertEqual(status, 200)
+            self.assertNotIn("Q02", second["answers"])
+            self.assertNotEqual(
+                restored["profile"]["directoryName"],
+                second["profile"]["directoryName"],
+            )
+        finally:
+            self.base_url = original_url
             server.shutdown()
             server.server_close()
             thread.join(timeout=2)
