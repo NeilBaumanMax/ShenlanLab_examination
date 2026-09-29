@@ -13,10 +13,28 @@ export interface StoredAttachment {
   size: number;
 }
 
+export interface SubmissionFile {
+  name: string;
+  size: number;
+}
+
+export interface SubmissionQuestionDirectory {
+  id: string;
+  directoryName: string;
+  files: SubmissionFile[];
+}
+
+export interface SubmissionFileTree {
+  directoryName: string;
+  rootFiles: SubmissionFile[];
+  questions: SubmissionQuestionDirectory[];
+}
+
 export interface ProfileResponse {
   profile: StudentProfile;
   answers: Record<string, StoredAnswer>;
   attachments: Record<string, StoredAttachment[]>;
+  fileTree: SubmissionFileTree;
 }
 
 interface ApiError {
@@ -55,11 +73,9 @@ export function saveAnswer(
   profile: StudentProfile,
   questionId: string,
   fields: StoredAnswer,
-  keepalive = false,
 ): Promise<{ ok: boolean; questionId: string; savedAt: string }> {
   return request(`/api/answers/${encodeURIComponent(questionId)}`, {
     method: "PUT",
-    keepalive,
     body: JSON.stringify({
       name: profile.name,
       studentId: profile.studentId,
@@ -96,12 +112,12 @@ export async function uploadAttachment(
   return payload.attachment;
 }
 
-export function removeAttachment(
+export function deleteSubmissionFile(
   profile: StudentProfile,
   questionId: string,
   filename: string,
 ): Promise<{ ok: boolean; questionId: string; filename: string }> {
-  return request(`/api/attachments/${encodeURIComponent(questionId)}`, {
+  return request(`/api/files/${encodeURIComponent(questionId)}`, {
     method: "DELETE",
     body: JSON.stringify({
       name: profile.name,
@@ -109,6 +125,11 @@ export function removeAttachment(
       filename,
     }),
   });
+}
+
+export function getSubmissionFileTree(profile: StudentProfile): Promise<{ fileTree: SubmissionFileTree }> {
+  const query = new URLSearchParams({ name: profile.name, studentId: profile.studentId });
+  return request(`/api/submission/files?${query.toString()}`, { method: "GET" });
 }
 
 export function openSubmissionDirectory(profile: StudentProfile): Promise<{ ok: boolean; directoryName: string }> {
