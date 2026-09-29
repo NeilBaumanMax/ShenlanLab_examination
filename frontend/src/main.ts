@@ -144,9 +144,9 @@ function renderIdentityGate(editing = false): void {
   root!.innerHTML = `
     <main class="identity-gate">
       <section class="identity-panel" aria-labelledby="identity-title">
-        <a class="brand" href="#" aria-label="深蓝科技部答题 App">
+        <a class="brand" href="#" aria-label="深蓝科技部 AI Agent 应用考核">
           <span class="brand__seal" aria-hidden="true">深</span>
-          <span class="brand__text"><strong>深蓝科技部</strong><small>AI AGENT QUEST</small></span>
+          <span class="brand__text"><strong>深蓝科技部 AI Agent 应用考核</strong><small>APPLICATION ASSESSMENT</small></span>
         </a>
         <h1 id="identity-title">${editing ? "修改身份" : "首次登记"}</h1>
         <form class="identity-form" data-profile-form>
@@ -174,9 +174,9 @@ function renderProfilePicker(profiles: StudentProfile[]): void {
   root!.innerHTML = `
     <main class="identity-gate">
       <section class="identity-panel" aria-labelledby="identity-title">
-        <a class="brand" href="#" aria-label="深蓝科技部答题 App">
+        <a class="brand" href="#" aria-label="深蓝科技部 AI Agent 应用考核">
           <span class="brand__seal" aria-hidden="true">深</span>
-          <span class="brand__text"><strong>深蓝科技部</strong><small>AI AGENT QUEST</small></span>
+          <span class="brand__text"><strong>深蓝科技部 AI Agent 应用考核</strong><small>APPLICATION ASSESSMENT</small></span>
         </a>
         <h1 id="identity-title">选择本机资料</h1>
         <div class="profile-list">${choices}</div>
@@ -189,9 +189,9 @@ function renderProfileLoading(error = ""): void {
   root!.innerHTML = `
     <main class="identity-gate">
       <section class="identity-panel" aria-labelledby="identity-title" aria-live="polite">
-        <a class="brand" href="#" aria-label="深蓝科技部答题 App">
+        <a class="brand" href="#" aria-label="深蓝科技部 AI Agent 应用考核">
           <span class="brand__seal" aria-hidden="true">深</span>
-          <span class="brand__text"><strong>深蓝科技部</strong><small>AI AGENT QUEST</small></span>
+          <span class="brand__text"><strong>深蓝科技部 AI Agent 应用考核</strong><small>APPLICATION ASSESSMENT</small></span>
         </a>
         <h1 id="identity-title">${error ? "无法读取本机资料" : "正在读取本机资料…"}</h1>
         <p class="identity-path">${escapeHtml(error || "正在扫描本机提交目录。")}</p>
@@ -311,7 +311,7 @@ function renderShell(content: string): void {
     <header class="topbar">
       <button class="brand" type="button" data-home>
         <span class="brand__seal" aria-hidden="true">深</span>
-        <span class="brand__text"><strong>深蓝科技部</strong><small>AI AGENT QUEST</small></span>
+        <span class="brand__text"><strong>深蓝科技部 AI Agent 应用考核</strong><small>APPLICATION ASSESSMENT</small></span>
       </button>
       <div class="topbar__identity"><span class="identity-avatar" aria-hidden="true">${escapeHtml(activeProfile?.name.slice(0, 1) ?? "")}</span>
         <span>${escapeHtml(activeProfile?.name ?? "")} <small>${escapeHtml(activeProfile?.studentId ?? "")}</small></span>
@@ -339,7 +339,7 @@ function renderHome(): void {
   const summaryDetails = `<details class="overview-details"><summary>考核方式、对象与目的</summary><div class="overview-details__content">${renderMarkdown(extractExamSummary(examMarkdown))}</div></details>`;
   const details = additional.map((section, index) => `<details class="overview-details"><summary>${additionalTitles[index] ?? "补充说明"}</summary><div class="overview-details__content">${renderMarkdown(section)}</div></details>`).join("");
   renderShell(`<section class="home-heading">
-    <p class="eyebrow">AI Agent 闯关答题</p>
+    <p class="eyebrow">AI Agent 应用考核</p>
     <h1>从认识 AI 到完成自己的作品</h1>
     <p>自主学习，动手实践。无需预先会编程；使用 AI 没有问题，关键是理解并核对自己的提交。</p>
     <button class="button button--primary" type="button" data-question="${escapeHtml(next.id)}">${progressCount() ? "继续答题" : "从第 1 题开始"} <span aria-hidden="true">→</span></button>
