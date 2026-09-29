@@ -101,7 +101,7 @@ Use a compact 4/8/16/24/32px spacing rhythm. Put more space before a new section
 
 ## Elevation & Depth
 
-Use Liquid Glass as functional chrome, not as a decorative filter: the sticky top bar and supporting answer/file panels may use translucent, saturated blur with an offset shadow so content can move beneath them. Keep task instructions, answer fields, file rows, and long-form reading on opaque high-contrast surfaces. Never stack translucent layers over one another. Where `backdrop-filter` is unavailable or transparency reduction is requested, fall back to a near-opaque surface with a defined edge.
+Use Liquid Glass as functional chrome, not as a decorative filter: the sticky top bar uses a 22px blur at 76% opacity; supporting answer/file panels use an 18px blur at 72% opacity; the identity panel uses a 26px blur at 86% opacity. Saturation stays restrained and the layer gets a pale edge plus an offset shadow so content can move beneath it. Keep task instructions, answer fields, file rows, and long-form reading opaque and high-contrast. Never stack translucent layers over one another. Where `backdrop-filter` is unavailable or a supported transparency-reduction preference is active, fall back to a near-opaque surface with a defined edge.
 
 ## Shapes
 
@@ -115,7 +115,7 @@ Use 14–18px corners for work panels, 12–14px for buttons and fields, and up 
 - **Secondary:** White or pale blue fill with a quiet line; preserve the same shape and height.
 
 ### Cards / Containers
-- **Corner Style:** 16px on task surfaces; compact floating chrome may use a 20px radius.
+- **Corner Style:** 18px on task and supporting surfaces, 24px on the identity surface; compact floating chrome may use a 16px radius.
 - **Background:** Opaque paper white on task and answer surfaces; translucent glass only on structural chrome and supporting panels.
 - **Border:** Quiet translucent edge on glass; use one clear separation method and a soft offset shadow, not a heavy border-plus-shadow stack.
 - **Internal Padding:** 24px desktop, 16px narrow screens.
