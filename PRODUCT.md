@@ -26,6 +26,10 @@ Students receive the app as a compressed folder, run it locally with Python, and
 
 - The app presents four stages and ten tasks; students may open tasks in any order.
 - Answers and attachments are stored on the student's computer and can be restored from the same extracted app folder.
+- The first screen collects the student's name and student ID; the local answer folder is named `姓名_学号`.
+- Students explicitly submit each question. They can edit and resubmit to replace that question's text files, or delete submitted files; unsubmitted edits remain only in the current page session.
+- Each question has its own folder. Answers and GitHub links are plain `.txt` files, attachments remain in their original formats, and a live file tree exposes saved files and the folder-opening action.
+- A ten-question answer card supports free navigation and distinguishes empty, submitted, and changed-but-unsubmitted work; questions are never locked.
 - The local service binds only to `127.0.0.1`; it does not upload student information, answers, or attachments.
 - There is no administrator console, online inbox, automated scoring, admission decision, telemetry, cloud sync, or automatic email submission.
 - The student prepares Python to run the packaged app. Node.js is a development dependency only.

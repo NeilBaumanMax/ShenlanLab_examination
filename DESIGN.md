@@ -54,15 +54,15 @@ components:
 
 **Creative North Star: The Local Learning Workbench.**
 
-This is a focused working surface for students moving between a learning route, a task brief, and their own answer. The atmosphere comes from a deep blue navigation frame and a bright, quiet work area. Blue identifies the product and current location; it does not turn every task into a game screen.
+This is a focused working surface for students reading a task, preparing an answer, and explicitly saving it locally. The atmosphere comes from a bright, quiet work area with blue reserved for primary actions and active states; it does not turn every task into a game screen.
 
 Keep the task, the organizer's expectations, and the answer area in a predictable order. Use ordinary browser controls and clear local-save feedback so the interface recedes while the student works.
 
 **Key Characteristics:**
 
-- Blue navigation frame, bright reading surface.
-- Content-led layout with a persistent, freely navigable route.
-- Familiar controls and visible local-save state.
+- Bright reading surface with a compact, freely navigable ten-question answer card.
+- Content-led layout with the question and answer as the primary column, and progress plus the saved-file tree in a supporting column.
+- Familiar controls and clear submitted, changed, and unsaved-draft feedback.
 
 ## Colors
 
@@ -95,7 +95,7 @@ The palette pairs a deep blue frame with high-contrast white and pale blue surfa
 
 ## Layout
 
-Use a persistent route navigation beside a readable task workspace. On wide screens, keep the question content near 65–75ch and place secondary expectations or progress in a supporting column when space allows. On narrow screens, collapse route navigation into a compact control and stack the task content; never force horizontal scrolling for the answer form.
+On wide screens, keep the question and answer workspace as the main column and place the answer card and live saved-file tree in a supporting right column. On narrow screens, let the student switch between the task and supporting panels; keep the answer card above the file tree in the supporting panel and never force horizontal scrolling. The identity form is the first screen before entering the tasks.
 
 Use a compact 4/8/16/24/32px spacing rhythm. Put more space before a new section heading than after it. Keep task instructions, organizer expectations, assessment focus, expected outcome, resources, and answer controls visibly distinct.
 
@@ -128,12 +128,13 @@ Use practical 8–12px corners on controls and task surfaces, with up to 20px re
 ### Navigation
 - Keep all four stages and ten tasks available.
 - Mark current, answered, and unanswered tasks distinctly without implying a lock.
-- Collapse the navigation on narrow screens while retaining a clear way to change tasks.
+- Make all ten question numbers directly clickable; show empty, submitted, and changed-but-unsubmitted status.
+- On narrow screens, use the task/supporting-panel switch while retaining direct question navigation.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** make saving, saved, and failed states explicit beside the work they describe.
+- **Do** make unsubmitted draft, submitted, and failed states explicit beside the work they describe; only an explicit submit action writes changes.
 - **Do** keep the full task expectations and answer affordances visible in the reading flow.
 - **Do** use semantic colors consistently for success, warning, and error.
 
