@@ -1,6 +1,7 @@
 # Student submissions and local runtime data
 /提交资料/
 /data/
+/release/
 *.sqlite3
 *.db
 

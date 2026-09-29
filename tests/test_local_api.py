@@ -1,5 +1,5 @@
-import json
 import io
+import json
 import tempfile
 import threading
 import unittest
@@ -165,6 +165,7 @@ class LocalApiTest(unittest.TestCase):
         }
         status, project_saved = self.post_json("/api/answers/Q09", project_answer)
         self.assertEqual(status, 200)
+        self.assertEqual(project_saved["questionId"], "Q09")
         project_markdown = (
             student_dir / QUESTION_DIRECTORIES["Q09"] / "回答.md"
         ).read_text(encoding="utf-8")
