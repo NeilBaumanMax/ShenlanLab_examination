@@ -1049,7 +1049,7 @@ AI Agent 可以很快生成代码和页面，但“生成了”不等于“能�
       <div class="question-heading__row"><div><p class="eyebrow">阶段 0${g.phases.indexOf(e)+1} · 第 ${t} 题</p><h1>${l(n.title)}</h1><p class="question-theme">${l(n.theme)}</p><a class="question-jump" href="#answer-form">跳到作答区 ↓</a></div><span class="question-index">${String(t).padStart(2,"0")}<i> / ${g.questions.length}</i></span></div>
     </div>
     <section class="question-content" aria-label="完整题目内容">
-      ${o?`<details class="reading-guide"><summary>展开阅读导读</summary><div>${N(o)}</div></details>`:""}
+      ${o?`<details class="reading-guide" open><summary>阅读导读</summary><div>${N(o)}</div></details>`:""}
       ${N(f)}
     </section>
     <form id="answer-form" class="answer-form" data-answer-form data-question-id="${l(n.id)}" autocomplete="off">

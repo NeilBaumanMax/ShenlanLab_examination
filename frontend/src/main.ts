@@ -385,7 +385,7 @@ function renderQuestion(question: Question): void {
       <div class="question-heading__row"><div><p class="eyebrow">阶段 0${data.phases.indexOf(phase!)+1} · 第 ${questionPosition} 题</p><h1>${escapeHtml(question.title)}</h1><p class="question-theme">${escapeHtml(question.theme)}</p><a class="question-jump" href="#answer-form">跳到作答区 ↓</a></div><span class="question-index">${String(questionPosition).padStart(2, "0")}<i> / ${data.questions.length}</i></span></div>
     </div>
     <section class="question-content" aria-label="完整题目内容">
-      ${reading ? `<details class="reading-guide"><summary>展开阅读导读</summary><div>${renderMarkdown(reading)}</div></details>` : ""}
+      ${reading ? `<details class="reading-guide" open><summary>阅读导读</summary><div>${renderMarkdown(reading)}</div></details>` : ""}
       ${renderMarkdown(task)}
     </section>
     <form id="answer-form" class="answer-form" data-answer-form data-question-id="${escapeHtml(question.id)}" autocomplete="off">
