@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 import start
@@ -226,6 +227,30 @@ class LocalApiTest(unittest.TestCase):
         self.assertIn("127.0.0.1:8765", error_output.getvalue())
         self.assertIn("关闭占用 8765 端口", error_output.getvalue())
         browser_open.assert_not_called()
+
+    def test_packaged_learning_resources_serve_from_local_distribution(self) -> None:
+        if not (start.WEB_ROOT / "materials" / "AI核心概念速读.md").is_file():
+            self.skipTest("先运行前端生产构建以生成随包学习资料。")
+        server = ThreadingHTTPServer(
+            ("127.0.0.1", 0), make_handler(start.WEB_ROOT, self.submissions_root)
+        )
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            resources = {
+                "/materials/AI核心概念速读.md": "Token",
+                "/templates/项目说明模板.md": "完成标准",
+                "/samples/模拟课表.xlsx": "PK",
+            }
+            for path, expected in resources.items():
+                with urlopen(base_url + quote(path, safe="/"), timeout=3) as response:
+                    body = response.read()
+                self.assertIn(expected.encode("utf-8"), body, path)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
 
 
 if __name__ == "__main__":
