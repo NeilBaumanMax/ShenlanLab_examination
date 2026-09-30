@@ -733,6 +733,8 @@ Claude Code 从哪个文件夹启动，就会围绕那个位置读取和修改�
 5. **打开 VS Code 的源代码管理面板。**
    按 `Ctrl+Shift+G` 打开 Source Control 面板。这里可以查看文件改动、暂存和提交；有 Git 仓库时还可以查看分支与提交历史，以及远端仓库的同步状态。
 
+![VS Code 工作区截图，左侧显示 Git 源代码管理和提交历史，右侧终端中运行 Claude Code](/assets/q09-vscode-claude-workspace.png)
+
 #### 我们希望看到
 
 - 能用 VS Code 打开一个独立的项目工作区；
