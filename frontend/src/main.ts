@@ -363,6 +363,33 @@ function renderHome(): void {
   <p class="privacy-note">答案保存在本机。完成后请打开个人提交目录，手动压缩并按组织者提供的信息发送。</p>`);
 }
 
+function renderQuestionTask(question: Question, task: string): string {
+  if (question.id !== "Q01") return renderMarkdown(task);
+
+  const conceptList = [
+    "- 大语言模型（LLM）",
+    "- Token",
+    "- 上下文（Context）",
+    "- 提示词（Prompt）",
+    "- 工具（Tool）",
+    "- Skill",
+    "- MCP",
+    "- AI Agent",
+  ].join("\n");
+  const conceptStart = task.indexOf(conceptList);
+  if (conceptStart < 0) return renderMarkdown(task);
+
+  const conceptEnd = conceptStart + conceptList.length;
+  return `${renderMarkdown(task.slice(0, conceptStart))}
+    <div class="q01-concept-layout">
+      <div class="q01-concept-list">${renderMarkdown(conceptList)}</div>
+      <figure class="q01-concept-figure">
+        <img src="/assets/q01-ai-agent-concepts.jpg" width="1536" height="1024" decoding="async" alt="AI Agent 核心概念图，展示 LLM、Prompt、Token、上下文、工具、Skill 与 MCP 等概念之间的联系">
+      </figure>
+    </div>
+    ${renderMarkdown(task.slice(conceptEnd))}`;
+}
+
 function renderQuestion(question: Question): void {
   activeQuestionId = question.id;
   const phase = phasesById.get(question.phaseId);
@@ -386,7 +413,7 @@ function renderQuestion(question: Question): void {
     </div>
     <section class="question-content" aria-label="完整题目内容">
       ${reading ? `<details class="reading-guide" open><summary>阅读导读</summary><div>${renderMarkdown(reading)}</div></details>` : ""}
-      ${renderMarkdown(task)}
+      ${renderQuestionTask(question, task)}
     </section>
     <form id="answer-form" class="answer-form" data-answer-form data-question-id="${escapeHtml(question.id)}" autocomplete="off">
       <div class="answer-form__heading"><h2>我的答案</h2><span class="save-state ${statusClass(state)}" data-current-state role="status">${statusLabel(state)}</span></div>

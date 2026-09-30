@@ -919,3 +919,44 @@ body { background: #061423; }
   text-align: center;
   text-wrap: balance;
 }
+
+/* Q01 pairs the required concept list with its visual map without changing the source question. */
+.q01-concept-layout {
+  display: grid;
+  grid-template-columns: minmax(230px, .68fr) minmax(0, 1.32fr);
+  align-items: center;
+  gap: clamp(22px, 3vw, 36px);
+  margin: 18px 0 30px;
+}
+.q01-concept-list ul {
+  gap: 8px;
+  margin: 0;
+  padding-left: 24px;
+}
+.q01-concept-list li {
+  color: #dceefa;
+  font-size: 16px;
+  font-weight: 620;
+  line-height: 1.72;
+}
+.q01-concept-figure {
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid rgba(184, 226, 255, .38);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 26px 56px -30px rgba(0, 0, 0, .95), inset 0 1px rgba(255, 255, 255, .8);
+}
+.q01-concept-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 820px) {
+  .q01-concept-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+  .q01-concept-figure { max-width: 680px; }
+}
