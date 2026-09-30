@@ -37,6 +37,7 @@ function isOrderedList(line: string): boolean {
 function isBlockStart(lines: string[], index: number): boolean {
   const line = lines[index] ?? "";
   return /^```/.test(line) || /^#{1,6}\s/.test(line) || /^>/.test(line) ||
+    /^!\[[^\]]*\]\(\/assets\/[^)\s]+\)\s*$/.test(line) ||
     isUnorderedList(line) || isOrderedList(line) || /^\s*\|/.test(line) ||
     /^\s*(---+|\*\*\*+)\s*$/.test(line);
 }
@@ -66,6 +67,13 @@ export function renderMarkdown(source: string): string {
       while (index < lines.length && !lines[index]!.startsWith("```")) code.push(lines[index++]!);
       if (index < lines.length) index += 1;
       html.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
+      continue;
+    }
+
+    const image = line.match(/^!\[([^\]]*)\]\((\/assets\/[^)\s]+)\)\s*$/);
+    if (image) {
+      html.push(`<figure class="md-figure"><img src="${escapeHtml(image[2]!)}" loading="lazy" decoding="async" alt="${escapeHtml(image[1]!)}"></figure>`);
+      index += 1;
       continue;
     }
 

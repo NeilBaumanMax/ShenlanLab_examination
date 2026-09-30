@@ -1005,3 +1005,18 @@ body { background: #061423; }
   width: 100%;
   height: auto;
 }
+
+/* Source-authored reference images keep learning resources in the reading flow. */
+.question-content .md-figure {
+  overflow: hidden;
+  width: min(100%, 980px);
+  margin: 22px auto 30px;
+  border-radius: 16px;
+  background: #080c18;
+  box-shadow: 0 24px 54px -30px rgba(0, 0, 0, .96);
+}
+.question-content .md-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}

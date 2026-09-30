@@ -446,6 +446,16 @@ Skill 不应该只写“帮助我学习”“认真检查文件”或“根据�
 
 > 建议搜索词：`Agent Skills specification`、`Claude Code skills`、`SKILL.md`、`Claude Code create custom skill`、`Skill progressive disclosure`。
 
+##### Skill 资源推荐
+
+**作者的 Skill 小站：**[Neil's Skill Hub](http://118.195.247.102/)
+
+![Neil's Skill Hub 页面，提供按工具、用途和标签整理的 Agent Skill 推荐](/assets/q05-neils-skill-hub.jpg)
+
+**推荐 Skill 库：**[skills.sh](https://www.skills.sh/)
+
+![skills.sh 页面，提供开放的 Agent Skills 生态与 Skill 检索入口](/assets/q05-skills-sh.jpg)
+
 #### 任务
 
 围绕一个具体、可重复的小任务，为 Claude Code 制作一个自己的 Skill。
