@@ -364,30 +364,42 @@ function renderHome(): void {
 }
 
 function renderQuestionTask(question: Question, task: string): string {
-  if (question.id !== "Q01") return renderMarkdown(task);
+  if (question.id === "Q01") {
+    const conceptList = [
+      "- 大语言模型（LLM）",
+      "- Token",
+      "- 上下文（Context）",
+      "- 提示词（Prompt）",
+      "- 工具（Tool）",
+      "- Skill",
+      "- MCP",
+      "- AI Agent",
+    ].join("\n");
+    const conceptStart = task.indexOf(conceptList);
+    if (conceptStart < 0) return renderMarkdown(task);
 
-  const conceptList = [
-    "- 大语言模型（LLM）",
-    "- Token",
-    "- 上下文（Context）",
-    "- 提示词（Prompt）",
-    "- 工具（Tool）",
-    "- Skill",
-    "- MCP",
-    "- AI Agent",
-  ].join("\n");
-  const conceptStart = task.indexOf(conceptList);
-  if (conceptStart < 0) return renderMarkdown(task);
+    const conceptEnd = conceptStart + conceptList.length;
+    return `${renderMarkdown(task.slice(0, conceptStart))}
+      <div class="q01-concept-layout">
+        <div class="q01-concept-list">${renderMarkdown(conceptList)}</div>
+        <figure class="q01-concept-figure">
+          <img src="/assets/q01-ai-agent-concepts.jpg" width="1536" height="1024" decoding="async" alt="AI Agent 核心概念图，展示 LLM、Prompt、Token、上下文、工具、Skill 与 MCP 等概念之间的联系">
+        </figure>
+      </div>
+      ${renderMarkdown(task.slice(conceptEnd))}`;
+  }
 
-  const conceptEnd = conceptStart + conceptList.length;
-  return `${renderMarkdown(task.slice(0, conceptStart))}
-    <div class="q01-concept-layout">
-      <div class="q01-concept-list">${renderMarkdown(conceptList)}</div>
-      <figure class="q01-concept-figure">
-        <img src="/assets/q01-ai-agent-concepts.jpg" width="1536" height="1024" decoding="async" alt="AI Agent 核心概念图，展示 LLM、Prompt、Token、上下文、工具、Skill 与 MCP 等概念之间的联系">
+  if (question.id === "Q03") {
+    const taskHeadingStart = task.indexOf("\n#### 任务");
+    if (taskHeadingStart < 0) return renderMarkdown(task);
+    return `${renderMarkdown(task.slice(0, taskHeadingStart))}
+      <figure class="q03-setup-figure">
+        <img src="/assets/q03-claude-code-terminal.png" width="1430" height="732" loading="lazy" decoding="async" alt="macOS 终端中运行 Claude Code 的界面，显示模型信息、自动更新状态和认证配置提醒">
       </figure>
-    </div>
-    ${renderMarkdown(task.slice(conceptEnd))}`;
+      ${renderMarkdown(task.slice(taskHeadingStart))}`;
+  }
+
+  return renderMarkdown(task);
 }
 
 function renderReadingGuide(question: Question, reading: string): string {

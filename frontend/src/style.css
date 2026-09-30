@@ -975,3 +975,18 @@ body { background: #061423; }
   width: 100%;
   height: auto;
 }
+
+/* Q03 anchors the setup guidance with the supplied real Claude Code terminal state. */
+.q03-setup-figure {
+  overflow: hidden;
+  width: min(100%, 1080px);
+  margin: 26px auto 30px;
+  border-radius: 16px;
+  background: #171b24;
+  box-shadow: 0 24px 54px -30px rgba(0, 0, 0, .96);
+}
+.q03-setup-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
