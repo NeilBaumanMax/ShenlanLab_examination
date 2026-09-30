@@ -795,6 +795,24 @@ Claude Code 从哪个文件夹启动，就会围绕那个位置读取和修改�
 
 5. **交给别人试用。** 写好运行说明，提供一组可公开的示例数据。请另一位同学或没有参与开发的人按说明完成主要操作，记录他遇到的问题和你的改动；暂时找不到试用者时，用截图或短视频展示从启动到得到结果的全过程。
 
+#### 案例展示
+
+**案例一：Catnip Forge**
+
+[查看 Catnip Forge GitHub 仓库](https://github.com/NeilBaumanMax/Catnip_Forge_Vibecoding)
+
+Catnip Forge 是团队使用 Vibecoding 制作的 ESP32 硬件 Agent 开发平台，可以实现从一个想法到硬件实现的完整流程。开发全程由 Agent 辅助，可执行代码编写、编译、烧录和调试等操作。
+
+![Catnip Forge ESP32 硬件 Agent 开发平台界面，展示 Agent 对话、探索工作区和项目状态](/assets/q10-catnip-forge-case.jpg)
+
+**案例二：Neil's Skill Hub**
+
+[查看 Neil's Skill Hub GitHub 仓库](https://github.com/NeilBaumanMax/Neil-s-Skill-Hub)
+
+Neil's Skill Hub 是作者搭建的 Skill 分享网站，用来整理并分享自己实际使用过的 Skill，帮助更多人发现适合带入工作流的 Agent 能力。
+
+![Neil's Skill Hub 网站界面，展示 Skill 搜索、分类和精选内容](/assets/q10-skill-hub-case.jpg)
+
 #### 我们希望看到
 
 - 你能说清工具要解决的问题，而不是只展示 Agent 生成的页面；
