@@ -990,3 +990,18 @@ body { background: #061423; }
   width: 100%;
   height: auto;
 }
+
+/* Q04 keeps the tall command reference legible between the instruction and examples. */
+.q04-command-figure {
+  overflow: hidden;
+  width: min(100%, 900px);
+  margin: 26px auto 30px;
+  border-radius: 16px;
+  background: #edf7ff;
+  box-shadow: 0 24px 54px -30px rgba(0, 0, 0, .94);
+}
+.q04-command-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}

@@ -233,7 +233,7 @@ AI Agent配置、基本使用方法、熟悉并习惯用命令行操作。
 
 #### 任务
 
-根据你安装的 Agent 当前版本，使用帮助命令或官方文档，找出并实际尝试至少 5 个对你有用的操作。可以参考该GitHub仓库 https://github.com/KimYx0207/AI-Coding-Guide-Zh 教程的“ 02-基础使用完整指南.md 的 第二部分：5分钟快速开始 ”，或者自行查找Claude code CLI常用命令，Claude Code 用户可以从 **claude --version**、**claude --help** 和会话内的 **/help** 开始，再继续探索其他命令。也可以选择恢复会话、查看权限或检查扩展配置等操作。
+根据你安装的 Agent 当前版本，使用帮助命令或官方文档，找出并实际尝试至少 5 个对你有用的操作。可以参考 GitHub 仓库 [KimYx0207/AI-Coding-Guide-Zh](https://github.com/KimYx0207/AI-Coding-Guide-Zh) 教程的“ 02-基础使用完整指南.md 的 第二部分：5分钟快速开始 ”，或者自行查找Claude code CLI常用命令，Claude Code 用户可以从 **claude --version**、**claude --help** 和会话内的 **/help** 开始，再继续探索其他命令。也可以选择恢复会话、查看权限或检查扩展配置等操作。
 
 例如：
 

@@ -399,6 +399,20 @@ function renderQuestionTask(question: Question, task: string): string {
       ${renderMarkdown(task.slice(taskHeadingStart))}`;
   }
 
+  if (question.id === "Q04") {
+    const taskHeading = "\n#### 任务\n\n";
+    const firstParagraphStart = task.indexOf(taskHeading);
+    const firstParagraphEnd = firstParagraphStart >= 0
+      ? task.indexOf("\n\n", firstParagraphStart + taskHeading.length)
+      : -1;
+    if (firstParagraphEnd < 0) return renderMarkdown(task);
+    return `${renderMarkdown(task.slice(0, firstParagraphEnd))}
+      <figure class="q04-command-figure">
+        <img src="/assets/q04-claude-code-command-cheatsheet.jpg" width="1122" height="1402" loading="lazy" decoding="async" alt="Claude Code CLI 常用命令速查图，涵盖安装启动、会话管理、自动化模式、斜杠命令和使用建议">
+      </figure>
+      ${renderMarkdown(task.slice(firstParagraphEnd))}`;
+  }
+
   return renderMarkdown(task);
 }
 
