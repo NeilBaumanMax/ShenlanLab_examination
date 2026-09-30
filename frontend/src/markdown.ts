@@ -72,7 +72,7 @@ export function renderMarkdown(source: string): string {
 
     const image = line.match(/^!\[([^\]]*)\]\((\/assets\/[^)\s]+)\)\s*$/);
     if (image) {
-      html.push(`<figure class="md-figure"><img src="${escapeHtml(image[2]!)}" loading="lazy" decoding="async" alt="${escapeHtml(image[1]!)}"></figure>`);
+      html.push(`<figure class="md-figure"><img src="${escapeHtml(image[2]!)}" loading="eager" decoding="async" alt="${escapeHtml(image[1]!)}"></figure>`);
       index += 1;
       continue;
     }
