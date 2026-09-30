@@ -960,3 +960,18 @@ body { background: #061423; }
   }
   .q01-concept-figure { max-width: 680px; }
 }
+
+/* Q02 uses the supplied comparison image as a visual pause before the guide's conclusion. */
+.q02-reading-figure {
+  overflow: hidden;
+  width: min(100%, 980px);
+  margin: 26px auto 28px;
+  border-radius: 16px;
+  background: #eef7ff;
+  box-shadow: 0 24px 54px -30px rgba(0, 0, 0, .94);
+}
+.q02-reading-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}

@@ -390,6 +390,19 @@ function renderQuestionTask(question: Question, task: string): string {
     ${renderMarkdown(task.slice(conceptEnd))}`;
 }
 
+function renderReadingGuide(question: Question, reading: string): string {
+  if (question.id !== "Q02") return renderMarkdown(reading);
+
+  const finalParagraphStart = reading.lastIndexOf("\n\n");
+  if (finalParagraphStart < 0) return renderMarkdown(reading);
+
+  return `${renderMarkdown(reading.slice(0, finalParagraphStart))}
+    <figure class="q02-reading-figure">
+      <img src="/assets/q02-ai-application-examples.jpg" width="1448" height="1086" loading="lazy" decoding="async" alt="AI 应用示例图，对比 AI 聊天机器人、固定 AI 工作流和 AI Agent 三种应用模式">
+    </figure>
+    ${renderMarkdown(reading.slice(finalParagraphStart))}`;
+}
+
 function renderQuestion(question: Question): void {
   activeQuestionId = question.id;
   const phase = phasesById.get(question.phaseId);
@@ -412,7 +425,7 @@ function renderQuestion(question: Question): void {
       <div class="question-heading__row"><div><p class="eyebrow">阶段 0${data.phases.indexOf(phase!)+1} · 第 ${questionPosition} 题</p><h1>${escapeHtml(question.title)}</h1><p class="question-theme">${escapeHtml(question.theme)}</p><a class="question-jump" href="#answer-form">跳到作答区 ↓</a></div><span class="question-index">${String(questionPosition).padStart(2, "0")}<i> / ${data.questions.length}</i></span></div>
     </div>
     <section class="question-content" aria-label="完整题目内容">
-      ${reading ? `<details class="reading-guide" open><summary>阅读导读</summary><div>${renderMarkdown(reading)}</div></details>` : ""}
+      ${reading ? `<details class="reading-guide" open><summary>阅读导读</summary><div>${renderReadingGuide(question, reading)}</div></details>` : ""}
       ${renderQuestionTask(question, task)}
     </section>
     <form id="answer-form" class="answer-form" data-answer-form data-question-id="${escapeHtml(question.id)}" autocomplete="off">
