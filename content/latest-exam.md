@@ -566,6 +566,10 @@ Git 就是为项目记录变化和管理版本的工具。它可以为项目建�
 
 创建自己的 GitHub 账号和一个练习仓库，再将它与本地练习文件夹连接。推荐学习 SSH 连接方式，并完成一次提交和推送。
 
+**推荐视频：**[Git+Github核心概念大串讲，从零到一全攻略，详细实战教程](https://www.bilibili.com/video/BV1ySLc6QEcB?vd_source=f2566932bb9532578531c4d07b1de85d)
+
+![Git 与 GitHub 核心概念图，对比本地版本控制、远程仓库、提交推送拉取与协作流程](/assets/q06-git-github-overview.jpg)
+
 请尝试理解并使用以下 Git 操作中的必要部分：
 
 - **git status**：查看当前文件变化；
