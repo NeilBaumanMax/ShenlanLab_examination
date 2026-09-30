@@ -127,8 +127,8 @@ export function extractQuestionMarkdown(document: string): Map<string, string> {
   headings.forEach((heading, position) => {
     const start = heading.index! + heading[0].length;
     const nextQuestion = headings[position + 1]?.index ?? document.length;
-    const nextGlobalSection = document.indexOf("\n## 三、我们如何看待你的表现", start);
-    const end = nextGlobalSection >= 0 ? Math.min(nextQuestion, nextGlobalSection) : nextQuestion;
+    const nextLevelTwoSection = document.indexOf("\n## ", start);
+    const end = nextLevelTwoSection >= 0 ? Math.min(nextQuestion, nextLevelTwoSection) : nextQuestion;
     questions.set(`Q${String(Number(heading[1])).padStart(2, "0")}`, document.slice(start, end).trim());
   });
   return questions;
