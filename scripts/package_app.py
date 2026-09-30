@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a clean, self-contained student distribution ZIP."""
+"""Create the clean, cross-platform student distribution ZIP."""
 
 from __future__ import annotations
 
@@ -10,8 +10,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-OUTPUT = ROOT / "release" / "DeepBlue-Agent-Quest.zip"
-PACKAGE_ROOT = "DeepBlue-Agent-Quest"
+PACKAGE_NAME = "AI Agent 应用学习与考核"
+OUTPUT = ROOT / "release" / f"{PACKAGE_NAME}.zip"
+PACKAGE_ROOT = PACKAGE_NAME
 PACKAGE_PATHS = (
     ".gitignore",
     "运行说明.md",
@@ -59,7 +60,7 @@ def main() -> int:
     temporary_path: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(
-            prefix="DeepBlue-Agent-Quest-", suffix=".zip.tmp", dir=OUTPUT.parent, delete=False
+            prefix=f"{PACKAGE_NAME}-", suffix=".zip.tmp", dir=OUTPUT.parent, delete=False
         ) as temporary:
             temporary_path = Path(temporary.name)
         with zipfile.ZipFile(temporary_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
