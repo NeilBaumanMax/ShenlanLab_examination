@@ -15,6 +15,7 @@ OUTPUT = ROOT / "release" / f"{PACKAGE_NAME}.zip"
 PACKAGE_ROOT = PACKAGE_NAME
 PACKAGE_PATHS = (
     ".gitignore",
+    "使用说明.md",
     "运行说明.md",
     "start.py",
     "start_windows.bat",
